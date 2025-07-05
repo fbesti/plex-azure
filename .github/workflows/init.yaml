@@ -9,7 +9,7 @@ on:
 env:
   TF_STATE_RG: rg-terraform-states-prod
   TF_STATE_SA: stofustatesprdfbesti8106
-  TF_STATE_CONTAINER: tfstate
+  TF_STATE_CONTAINER: tofu-state
   AZURE_LOCATION: northeurope
   AZURE_SA_SKU: Standard_LRS # Cheapest option for StorageV2
   AZURE_SA_KIND: StorageV2
