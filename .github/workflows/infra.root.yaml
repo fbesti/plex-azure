@@ -30,7 +30,7 @@ jobs:
       tf_state_rg: ${{ env.TF_STATE_RG }}
       tf_state_sa: ${{ env.TF_STATE_SA }}
       tf_state_container: ${{ env.TF_STATE_CONTAINER }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+      tf_state_key: ${{ vars.TF_STATE_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
