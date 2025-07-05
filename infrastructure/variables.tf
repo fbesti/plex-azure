@@ -1,0 +1,21 @@
+variable "location" {
+  description = "The Azure region where resources will be created."
+  type        = string
+  default     = "North Europe"
+}
+
+variable "resource_group_name" {
+  description = "The name of the resource group."
+  type        = string
+  default     = "rg-example"
+}
+
+variable "remote_state_subscription_id" {
+  description = "The subscription ID of the remote state storage account."
+  type        = string
+}
+
+variable "remote_state_tenant_id" {
+  description = "The tenant ID of the remote state storage account."
+  type        = string
+}

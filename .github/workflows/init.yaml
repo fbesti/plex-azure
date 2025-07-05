@@ -154,20 +154,8 @@ jobs:
           echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
           echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
-
-      - name: Create backend configuration
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          cat > backend.tf << EOF
-          terraform {
-            backend "azurerm" {
-              resource_group_name  = "${{ needs.setup_opentofu_backend.outputs.tf_state_rg }}"
-              storage_account_name = "${{ needs.setup_opentofu_backend.outputs.tf_state_sa }}"
-              container_name       = "${{ needs.setup_opentofu_backend.outputs.tf_state_container }}"
-              key                  = "terraform.tfstate"
-            }
-          }
-          EOF
+          echo "TF_VAR_remote_state_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_remote_state_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
 
       - name: OpenTofu Format Check
         working-directory: ${{ env.WORKING_DIR }}
