@@ -4,17 +4,10 @@ on:
     types: [opened, synchronize, reopened]
     branches:
       - main
+  push:
+    branches:
+      - main
   workflow_dispatch:
-
-env:
-  TF_STATE_RG: rg-terraform-states-prod
-  TF_STATE_SA: stofustatesprdfbesti8106
-  TF_STATE_CONTAINER: tofu-state
-  AZURE_LOCATION: northeurope
-  AZURE_SA_SKU: Standard_LRS # Cheapest option for StorageV2
-  AZURE_SA_KIND: StorageV2
-  AZURE_SA_TIER: Hot # Hot tier is suitable for active Terraform state
-  WORKING_DIR: ./infrastructure # Change this to your OpenTofu/Terraform directory
 
 # Configure OIDC permissions
 permissions:
@@ -120,9 +113,9 @@ jobs:
           echo "Add this to your Terraform configuration:"
           echo "terraform {"
           echo "  backend \"azurerm\" {"
-          echo "    resource_group_name  = \"${{ env.TF_STATE_RG }}\""
-          echo "    storage_account_name = \"${{ env.TF_STATE_SA }}\""
-          echo "    container_name       = \"${{ env.TF_STATE_CONTAINER }}\""
+          echo "    resource_group_name  = \"${{ env.TF_STATE_RG }}\"
+          echo "    storage_account_name = \"${{ env.TF_STATE_SA }}\"
+          echo "    container_name       = \"${{ env.TF_STATE_CONTAINER }}\"
           echo "    key                  = \"terraform.tfstate\""
           echo "  }"
           echo "}"
@@ -131,6 +124,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: setup_opentofu_backend
     environment: production
+    outputs:
+      plan_changes: ${{ steps.plan.outputs.plan_changes }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -170,6 +165,7 @@ jobs:
         run: tofu validate
 
       - name: OpenTofu Plan
+        id: plan
         working-directory: ${{ env.WORKING_DIR }}
         run: |
           tofu plan -out=tfplan -detailed-exitcode || exit_code=$?
@@ -179,9 +175,11 @@ jobs:
           elif [ $exit_code -eq 2 ]; then
             echo "OpenTofu plan succeeded with changes"
             echo "PLAN_CHANGES=true" >> $GITHUB_ENV
+            echo "plan_changes=true" >> $GITHUB_OUTPUT
           else
             echo "OpenTofu plan succeeded with no changes"
             echo "PLAN_CHANGES=false" >> $GITHUB_ENV
+            echo "plan_changes=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Save Plan Output
@@ -225,5 +223,51 @@ jobs:
 #              repo: context.repo.repo,
 #              body: output
 #            });
+
+  opentofu_apply:
+    name: OpenTofu Apply
+    runs-on: ubuntu-latest
+    needs: opentofu_plan
+    environment: production
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.opentofu_plan.outputs.plan_changes == 'true'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: latest
+          tofu_wrapper: false
+
+      - name: Azure Login using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set Azure Environment Variables for OpenTofu
+        run: |
+          echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
+          echo "TF_VAR_remote_state_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_remote_state_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: opentofu-plan
+          path: ${{ env.WORKING_DIR }}
+
+      - name: OpenTofu Initialize
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tofu init
+
+      - name: OpenTofu Apply
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tofu apply -auto-approve tfplan
 
             
