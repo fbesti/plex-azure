@@ -1,4 +1,4 @@
-name: Azure Terraform State Setup
+name: Azure Open Tofu State Setup
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -15,7 +15,7 @@ permissions:
 jobs:
   setup_opentofu_backend:
     runs-on: ubuntu-latest
-    environment: production # Or a suitable environment name if you have them configured
+    environment: production 
     outputs:
       tf_state_rg: ${{ env.TF_STATE_RG }}
       tf_state_sa: ${{ env.TF_STATE_SA }}
