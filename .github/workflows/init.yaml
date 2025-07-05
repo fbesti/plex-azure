@@ -129,7 +129,7 @@ jobs:
 
   opentofu_plan:
     runs-on: ubuntu-latest
-    needs: setup_terraform_backend
+    needs: setup_opentofu_backend
     environment: production
     steps:
       - name: Checkout repository
