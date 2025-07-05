@@ -1,13 +1,14 @@
 name: Azure Terraform State Setup
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
     branches:
       - main
   workflow_dispatch:
 
 env:
   TF_STATE_RG: rg-terraform-states-prod
-  TF_STATE_SA: stopentofustatesprodfbesti8106
+  TF_STATE_SA: stofustatesprdfbesti8106
   TF_STATE_CONTAINER: tfstate
   AZURE_LOCATION: northeurope
   AZURE_SA_SKU: Standard_LRS # Cheapest option for StorageV2
