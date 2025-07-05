@@ -109,23 +109,7 @@ jobs:
             --account-name ${{ env.TF_STATE_SA }} \
             --auth-mode login
 
-      - name: Display Backend Configuration
-        run: |
-          echo "Terraform backend configuration:"
-          echo "================================"
-          echo "Resource Group: ${{ env.TF_STATE_RG }}"
-          echo "Storage Account: ${{ env.TF_STATE_SA }}"
-          echo "Container: ${{ env.TF_STATE_CONTAINER }}"
-          echo ""
-          echo "Add this to your Terraform configuration:"
-          echo "terraform {"
-          echo "  backend \"azurerm\" {"
-          echo "    resource_group_name  = \"${{ env.TF_STATE_RG }}\"
-          echo "    storage_account_name = \"${{ env.TF_STATE_SA }}\"
-          echo "    container_name       = \"${{ env.TF_STATE_CONTAINER }}\"
-          echo "    key                  = \"terraform.tfstate\""
-          echo "  }"
-          echo "}"
+
 
   opentofu_plan:
     runs-on: ubuntu-latest
