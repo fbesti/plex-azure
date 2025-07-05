@@ -14,6 +14,7 @@ env:
   AZURE_SA_SKU: Standard_LRS # Cheapest option for StorageV2
   AZURE_SA_KIND: StorageV2
   AZURE_SA_TIER: Hot # Hot tier is suitable for active Terraform state
+  WORKING_DIR: ./infrastructure # Change this to your OpenTofu/Terraform directory
 
 # Configure OIDC permissions
 permissions:
@@ -24,6 +25,10 @@ jobs:
   setup_terraform_backend:
     runs-on: ubuntu-latest
     environment: production # Or a suitable environment name if you have them configured
+    outputs:
+      tf_state_rg: ${{ env.TF_STATE_RG }}
+      tf_state_sa: ${{ env.TF_STATE_SA }}
+      tf_state_container: ${{ env.TF_STATE_CONTAINER }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -114,3 +119,107 @@ jobs:
           echo "    key                  = \"terraform.tfstate\""
           echo "  }"
           echo "}"
+
+  opentofu_plan:
+    runs-on: ubuntu-latest
+    needs: setup_terraform_backend
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: latest
+          tofu_wrapper: false
+
+      - name: Azure Login using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Create backend configuration
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          cat > backend.tf << EOF
+          terraform {
+            backend "azurerm" {
+              resource_group_name  = "${{ needs.setup_terraform_backend.outputs.tf_state_rg }}"
+              storage_account_name = "${{ needs.setup_terraform_backend.outputs.tf_state_sa }}"
+              container_name       = "${{ needs.setup_terraform_backend.outputs.tf_state_container }}"
+              key                  = "terraform.tfstate"
+            }
+          }
+          EOF
+
+      - name: OpenTofu Format Check
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tofu fmt -check -recursive
+
+      - name: OpenTofu Initialize
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tofu init
+
+      - name: OpenTofu Validate
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tofu validate
+
+      - name: OpenTofu Plan
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          tofu plan -out=tfplan -detailed-exitcode || exit_code=$?
+          if [ $exit_code -eq 1 ]; then
+            echo "OpenTofu plan failed"
+            exit 1
+          elif [ $exit_code -eq 2 ]; then
+            echo "OpenTofu plan succeeded with changes"
+            echo "PLAN_CHANGES=true" >> $GITHUB_ENV
+          else
+            echo "OpenTofu plan succeeded with no changes"
+            echo "PLAN_CHANGES=false" >> $GITHUB_ENV
+          fi
+
+      - name: Save Plan Output
+        if: env.PLAN_CHANGES == 'true'
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          tofu show -no-color tfplan > plan_output.txt
+          echo "## OpenTofu Plan Output" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat plan_output.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Plan Artifact
+        if: env.PLAN_CHANGES == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: opentofu-plan
+          path: |
+            ${{ env.WORKING_DIR }}/tfplan
+            ${{ env.WORKING_DIR }}/plan_output.txt
+          retention-days: 30
+
+      - name: Comment PR with Plan
+        if: github.event_name == 'pull_request' && env.PLAN_CHANGES == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('${{ env.WORKING_DIR }}/plan_output.txt', 'utf8');
+            const output = `## OpenTofu Plan Results
+            
+            \`\`\`
+            ${plan}
+            \`\`\`
+            
+            *Plan generated on: ${new Date().toISOString()}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
