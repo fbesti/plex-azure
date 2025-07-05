@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 jobs:
-  setup_terraform_backend:
+  setup_opentofu_backend:
     runs-on: ubuntu-latest
     environment: production # Or a suitable environment name if you have them configured
     outputs:
