@@ -1,5 +1,4 @@
 name: Azure Terraform State Setup
-
 on:
   pull_request:
     branches:
@@ -15,109 +14,102 @@ env:
   AZURE_SA_KIND: StorageV2
   AZURE_SA_TIER: Hot # Hot tier is suitable for active Terraform state
 
+# Configure OIDC permissions
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   setup_terraform_backend:
     runs-on: ubuntu-latest
     environment: production # Or a suitable environment name if you have them configured
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Decode Azure Credentials
-        id: decode_creds
-        # Assumes AZURE_CREDENTIALS is a base64 encoded JSON string of your Service Principal
-        # Example: echo '{"clientId": "...", "clientSecret": "...", "tenantId": "...", "subscriptionId": "..."}' | base64
-        run: |
-          echo "${{ secrets.AZURE_CREDENTIALS }}" | base64 -d > azure_credentials.json
-        # IMPORTANT: Ensure this file is used only for login and then cleaned up if security is paramount.
-        # For this workflow, it's a temporary file for `azure/login`.
-
-      - name: Azure Login
+      - name: Azure Login using OIDC
         uses: azure/login@v2
         with:
-          creds: './azure_credentials.json' # Path to the decoded service principal JSON
-          enable-AzPSSession: false # Not needed for Azure CLI operations
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Create Resource Group if not exists
-        id: create_rg
+      - name: Check if Resource Group exists
+        id: check_rg
         run: |
-          echo "Checking for Resource Group: $TF_STATE_RG"
-          RG_EXISTS=$(az group show --name "${{ env.TF_STATE_RG }}" --query name -o tsv 2>/dev/null || true)
-          if [ -z "$RG_EXISTS" ]; then
-            echo "Resource Group '${{ env.TF_STATE_RG }}' does not exist. Creating..."
-            az group create \
-              --name "${{ env.TF_STATE_RG }}" \
-              --location "${{ env.AZURE_LOCATION }}" \
-              --output none
-            echo "Resource Group '${{ env.TF_STATE_RG }}' created successfully."
+          if az group show --name ${{ env.TF_STATE_RG }} --output none 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "Resource Group '${{ env.TF_STATE_RG }}' already exists."
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create Storage Account if not exists
-        id: create_sa
+      - name: Create Resource Group
+        if: steps.check_rg.outputs.exists == 'false'
         run: |
-          echo "Checking for Storage Account: ${{ env.TF_STATE_SA }}"
-          SA_EXISTS=$(az storage account show \
-            --name "${{ env.TF_STATE_SA }}" \
-            --resource-group "${{ env.TF_STATE_RG }}" \
-            --query name -o tsv 2>/dev/null || true)
+          az group create \
+            --name ${{ env.TF_STATE_RG }} \
+            --location ${{ env.AZURE_LOCATION }}
 
-          if [ -z "$SA_EXISTS" ]; then
-            echo "Storage Account '${{ env.TF_STATE_SA }}' does not exist. Creating..."
-            az storage account create \
-              --name "${{ env.TF_STATE_SA }}" \
-              --resource-group "${{ env.TF_STATE_RG }}" \
-              --location "${{ env.AZURE_LOCATION }}" \
-              --sku "${{ env.AZURE_SA_SKU }}" \
-              --kind "${{ env.AZURE_SA_KIND }}" \
-              --access-tier "${{ env.AZURE_SA_TIER }}" \
-              --output none
-            echo "Storage Account '${{ env.TF_STATE_SA }}' created successfully."
+      - name: Check if Storage Account exists
+        id: check_sa
+        run: |
+          if az storage account show --name ${{ env.TF_STATE_SA }} --resource-group ${{ env.TF_STATE_RG }} --output none 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "Storage Account '${{ env.TF_STATE_SA }}' already exists."
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create Blob Container if not exists
-        id: create_container
+      - name: Create Storage Account
+        if: steps.check_sa.outputs.exists == 'false'
         run: |
-          echo "Checking for Blob Container: ${{ env.TF_STATE_CONTAINER }}"
-          CONTAINER_EXISTS=$(az storage container show \
-            --name "${{ env.TF_STATE_CONTAINER }}" \
-            --account-name "${{ env.TF_STATE_SA }}" \
-            --query name -o tsv 2>/dev/null || true)
+          az storage account create \
+            --name ${{ env.TF_STATE_SA }} \
+            --resource-group ${{ env.TF_STATE_RG }} \
+            --location ${{ env.AZURE_LOCATION }} \
+            --sku ${{ env.AZURE_SA_SKU }} \
+            --kind ${{ env.AZURE_SA_KIND }} \
+            --access-tier ${{ env.AZURE_SA_TIER }} \
+            --allow-blob-public-access false \
+            --min-tls-version TLS1_2
 
-          if [ -z "$CONTAINER_EXISTS" ]; then
-            echo "Blob Container '${{ env.TF_STATE_CONTAINER }}' does not exist. Creating..."
-            az storage container create \
-              --name "${{ env.TF_STATE_CONTAINER }}" \
-              --account-name "${{ env.TF_STATE_SA }}" \
-              --output none
-            echo "Blob Container '${{ env.TF_STATE_CONTAINER }}' created successfully."
+      - name: Enable versioning on Storage Account
+        run: |
+          az storage account blob-service-properties update \
+            --account-name ${{ env.TF_STATE_SA }} \
+            --resource-group ${{ env.TF_STATE_RG }} \
+            --enable-versioning true
+
+      - name: Check if Container exists
+        id: check_container
+        run: |
+          if az storage container show --name ${{ env.TF_STATE_CONTAINER }} --account-name ${{ env.TF_STATE_SA }} --output none 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "Blob Container '${{ env.TF_STATE_CONTAINER }}' already exists."
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Clean up Azure Credentials file
-        if: always() # Ensure cleanup even if previous steps fail
-        run: rm -f azure_credentials.json
-
-      - name: Output Terraform Backend Configuration
+      - name: Create Storage Container
+        if: steps.check_container.outputs.exists == 'false'
         run: |
-          echo "Azure Storage Backend for Terraform is ready:"
-          echo "  Resource Group: ${{ env.TF_STATE_RG }}"
-          echo "  Storage Account: ${{ env.TF_STATE_SA }}"
-          echo "  Container: ${{ env.TF_STATE_CONTAINER }}"
+          az storage container create \
+            --name ${{ env.TF_STATE_CONTAINER }} \
+            --account-name ${{ env.TF_STATE_SA }} \
+            --auth-mode login
+
+      - name: Display Backend Configuration
+        run: |
+          echo "Terraform backend configuration:"
+          echo "================================"
+          echo "Resource Group: ${{ env.TF_STATE_RG }}"
+          echo "Storage Account: ${{ env.TF_STATE_SA }}"
+          echo "Container: ${{ env.TF_STATE_CONTAINER }}"
           echo ""
-          echo "You can configure your Terraform backend like this:"
-          echo '```hcl'
-          echo 'terraform {'
-          echo '  backend "azurerm" {'
-          echo '    resource_group_name  = "${{ env.TF_STATE_RG }}"'
-          echo '    storage_account_name = "${{ env.TF_STATE_SA }}"'
-          echo '    container_name       = "${{ env.TF_STATE_CONTAINER }}"'
-          echo '    key                  = "terraform.tfstate" # Adjust as needed for your project'
-          echo '  }'
-          echo '}'
-          echo '```'
+          echo "Add this to your Terraform configuration:"
+          echo "terraform {"
+          echo "  backend \"azurerm\" {"
+          echo "    resource_group_name  = \"${{ env.TF_STATE_RG }}\""
+          echo "    storage_account_name = \"${{ env.TF_STATE_SA }}\""
+          echo "    container_name       = \"${{ env.TF_STATE_CONTAINER }}\""
+          echo "    key                  = \"terraform.tfstate\""
+          echo "  }"
+          echo "}"
