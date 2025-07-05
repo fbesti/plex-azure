@@ -2,8 +2,6 @@ name: Azure Terraform State Setup
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches:
-      - main
   push:
     branches:
       - main
