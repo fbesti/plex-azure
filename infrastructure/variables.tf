@@ -11,7 +11,7 @@ variable "resource_group_name" {
 }
 
 variable "remote_state_subscription_id" {
-  description = "The subscription ID of the remote state storage account."
+  description = "The subscription ID of the remote state storage account. Extreme secret shit"
   type        = string
 }
 
