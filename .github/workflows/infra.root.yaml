@@ -1,4 +1,4 @@
-name: Azure Open Tofu State Setup
+name: Azure Open Tofu Resources CI/CD Workflow
 on:
   pull_request:
     types: [opened, synchronize, reopened]
