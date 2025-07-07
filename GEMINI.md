@@ -19,7 +19,7 @@ This workflow is responsible for managing Azure infrastructure using OpenTofu.
 1.  **`setup_opentofu_backend`**:
     *   **Purpose**: Initializes and ensures the existence of the Azure Resource Group, Storage Account, and Blob Container used for storing OpenTofu state files.
     *   **Execution**: This job runs conditionally on `pull_request` events and `workflow_dispatch` (manual trigger). It is designed to set up the backend resources once and does not need to run on every `push` to `main`.
-    *   **Conditions**: If step: check_container outputs true the subsequent steps: get_ip, add_fw_rule, create_container and remove_fw_rule, should run. If the output is false the subsequent steps should not run
+    *   **Conditions**: If step: check_container outputs false the subsequent steps: get_ip, add_fw_rule, create_container and remove_fw_rule, should run. If the output is false the subsequent steps should not run
 
 2.  **`opentofu_plan`**:
     *   **Purpose**: Generates an OpenTofu plan (`tfplan`) and uploads it as a workflow artifact. This plan represents the proposed infrastructure changes.
