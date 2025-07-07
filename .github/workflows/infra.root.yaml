@@ -140,7 +140,7 @@ jobs:
     needs: setup_opentofu_backend
     environment: production
     env:
-      WORKING_DIR: ./infrastructure
+      WORKING_DIR: ./infrastructure/azure
     outputs:
       plan_changes: ${{ steps.plan.outputs.plan_changes }}
     steps:
