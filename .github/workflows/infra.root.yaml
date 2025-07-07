@@ -99,7 +99,7 @@ jobs:
       - name: Check if Container exists
         id: check_container
         run: |
-          if az storage container show --name ${{ env.TF_STATE_CONTAINER }} --account-name ${{ env.TF_STATE_SA }} --output none 2>/dev/null; then
+          if az storage container show --name ${{ env.TF_STATE_CONTAINER }} --account-name ${{ env.TF_STATE_SA }} --auth-mode login --output none 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
