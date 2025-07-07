@@ -333,9 +333,20 @@ jobs:
           workflow: ${{ github.workflow_id }}
           pr: ${{ steps.find_pr.outputs.pr_number }}
           workflow_conclusion: success
+          if_no_artifact_found: 'ignore'
+
+      - name: Check for Plan File
+        id: check_plan
+        run: |
+          if [ -f "${{ env.WORKING_DIR }}/tfplan" ]; then
+            echo "plan_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "No plan found. Skipping apply."
+            echo "plan_exists=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: OpenTofu Initialize
-        if: steps.download_artifact.outcome == 'success'
+        if: steps.check_plan.outputs.plan_exists == 'true'
         working-directory: ${{ env.WORKING_DIR }}
         run: |
           tofu init \
@@ -345,7 +356,7 @@ jobs:
             -backend-config="key=${{ vars.TF_STATE_KEY }}"
 
       - name: OpenTofu Apply
-        if: steps.download_artifact.outcome == 'success'
+        if: steps.check_plan.outputs.plan_exists == 'true'
         working-directory: ${{ env.WORKING_DIR }}
         run: tofu apply -auto-approve tfplan
 
