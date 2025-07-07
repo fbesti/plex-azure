@@ -27,7 +27,7 @@ jobs:
       AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
       AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
       AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
-      WORKING_DIR: ./infrastructure
+      WORKING_DIR: ./infrastructure/azure
     outputs:
       tf_state_rg: ${{ env.TF_STATE_RG }}
       tf_state_sa: ${{ env.TF_STATE_SA }}
@@ -112,7 +112,6 @@ jobs:
             --name ${{ env.TF_STATE_CONTAINER }} \
             --account-name ${{ env.TF_STATE_SA }} \
             --auth-mode login
-
 
 
   opentofu_plan:
