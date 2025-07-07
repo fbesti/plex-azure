@@ -229,7 +229,7 @@ jobs:
     needs: setup_opentofu_backend
     environment: production
     env:
-      WORKING_DIR: ./infrastructure
+      WORKING_DIR: ./infrastructure/azure
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
