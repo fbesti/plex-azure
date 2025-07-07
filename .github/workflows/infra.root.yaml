@@ -27,7 +27,7 @@ jobs:
       AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
       AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
       AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
-      WORKING_DIR: ./infrastructure
+      WORKING_DIR: ./infrastructure/azure
     outputs:
       tf_state_rg: ${{ env.TF_STATE_RG }}
       tf_state_sa: ${{ env.TF_STATE_SA }}
@@ -105,6 +105,20 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Get Runner IP Address
+        id: get_ip
+        if: steps.check_container.outputs.exists == 'false'
+        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Add Firewall Rule to Storage Account
+        if: steps.check_container.outputs.exists == 'false'
+        run: |
+          az storage account network-rule add \
+            --account-name ${{ env.TF_STATE_SA }} \
+            --resource-group ${{ env.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
+          sleep 30
+
       - name: Create Storage Container
         if: steps.check_container.outputs.exists == 'false'
         run: |
@@ -113,6 +127,13 @@ jobs:
             --account-name ${{ env.TF_STATE_SA }} \
             --auth-mode login
 
+      - name: Remove Firewall Rule from Storage Account
+        if: always() && steps.check_container.outputs.exists == 'false'
+        run: |
+          az storage account network-rule remove \
+            --account-name ${{ env.TF_STATE_SA }} \
+            --resource-group ${{ env.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
 
 
   opentofu_plan:
@@ -121,7 +142,7 @@ jobs:
     needs: setup_opentofu_backend
     environment: production
     env:
-      WORKING_DIR: ./infrastructure
+      WORKING_DIR: ./infrastructure/azure
     outputs:
       plan_changes: ${{ steps.plan.outputs.plan_changes }}
     steps:
@@ -149,6 +170,18 @@ jobs:
           echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
           echo "TF_VAR_remote_state_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_remote_state_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+
+      - name: Get Runner IP Address
+        id: get_ip
+        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Add Firewall Rule to Storage Account
+        run: |
+          az storage account network-rule add \
+            --account-name ${{ vars.TF_STATE_SA }} \
+            --resource-group ${{ vars.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
+          sleep 30
 
       - name: OpenTofu Format Check
         working-directory: ${{ env.WORKING_DIR }}
@@ -200,10 +233,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: opentofu-plan-${{ github.event.pull_request.number }}
-          path: |
-            ${{ env.WORKING_DIR }}/tfplan
-            ${{ env.WORKING_DIR }}/plan_output.txt
+          path: ${{ env.WORKING_DIR }}/tfplan
           retention-days: 7
+
+      - name: Remove Firewall Rule from Storage Account
+        if: always()
+        run: |
+          az storage account network-rule remove \
+            --account-name ${{ vars.TF_STATE_SA }} \
+            --resource-group ${{ vars.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
 
 
   opentofu_apply:
@@ -212,7 +251,7 @@ jobs:
     needs: setup_opentofu_backend
     environment: production
     env:
-      WORKING_DIR: ./infrastructure
+      WORKING_DIR: ./infrastructure/azure
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
@@ -239,6 +278,18 @@ jobs:
           echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
           echo "TF_VAR_remote_state_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_remote_state_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+
+      - name: Get Runner IP Address
+        id: get_ip
+        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Add Firewall Rule to Storage Account
+        run: |
+          az storage account network-rule add \
+            --account-name ${{ vars.TF_STATE_SA }} \
+            --resource-group ${{ vars.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
+          sleep 30
 
       - name: Find PR number from merge commit
         id: find_pr
@@ -278,5 +329,13 @@ jobs:
         if: steps.find_pr.outputs.found_pr == 'true'
         working-directory: ${{ env.WORKING_DIR }}
         run: tofu apply -auto-approve tfplan
+
+      - name: Remove Firewall Rule from Storage Account
+        if: always()
+        run: |
+          az storage account network-rule remove \
+            --account-name ${{ vars.TF_STATE_SA }} \
+            --resource-group ${{ vars.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
 
             
