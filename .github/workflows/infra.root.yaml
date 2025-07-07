@@ -289,18 +289,6 @@ jobs:
           echo "TF_VAR_remote_state_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_remote_state_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
 
-      - name: Get Runner IP Address
-        id: get_ip
-        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
-
-      - name: Add Firewall Rule to Storage Account
-        run: |
-          az storage account network-rule add \
-            --account-name ${{ vars.TF_STATE_SA }} \
-            --resource-group ${{ vars.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
-            --output none
-          sleep 30
 
       - name: Find PR number from merge commit
         id: find_pr
@@ -334,7 +322,7 @@ jobs:
           pr: ${{ steps.find_pr.outputs.pr_number }}
           workflow_conclusion: success
           if_no_artifact_found: 'ignore'
-
+          
       - name: Check for Plan File
         id: check_plan
         run: |
@@ -344,6 +332,21 @@ jobs:
             echo "No plan found. Skipping apply."
             echo "plan_exists=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Get Runner IP Address
+        id: get_ip
+        if: steps.check_plan.outputs.plan_exists == 'true'
+        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Add Firewall Rule to Storage Account
+        if: steps.check_plan.outputs.plan_exists == 'true'
+        run: |
+          az storage account network-rule add \
+            --account-name ${{ vars.TF_STATE_SA }} \
+            --resource-group ${{ vars.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
+          sleep 30
 
       - name: OpenTofu Initialize
         if: steps.check_plan.outputs.plan_exists == 'true'
@@ -361,7 +364,7 @@ jobs:
         run: tofu apply -auto-approve tfplan
 
       - name: Remove Firewall Rule from Storage Account
-        if: always()
+        if: steps.check_plan.outputs.plan_exists == 'true'
         run: |
           az storage account network-rule remove \
             --account-name ${{ vars.TF_STATE_SA }} \
