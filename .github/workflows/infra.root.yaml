@@ -115,6 +115,7 @@ jobs:
             --account-name ${{ env.TF_STATE_SA }} \
             --resource-group ${{ env.TF_STATE_RG }} \
             --ip-address ${{ steps.get_ip.outputs.runner_ip }}
+          sleep 30
 
       - name: Create Storage Container
         if: steps.check_container.outputs.exists == 'false'
