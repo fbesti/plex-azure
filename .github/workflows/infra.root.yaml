@@ -297,7 +297,14 @@ jobs:
       - name: Find PR number from merge commit
         id: find_pr
         run: |
-          pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=Merge pull request #)\d+' || true)
+          # Try to find PR number from standard merge commit message
+          pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=Merge pull request #)\d+')
+
+          # If not found, try to find PR number from squash merge commit message
+          if [ -z "$pr_number" ]; then
+            pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=#)\d+(?=\)$)')
+          fi
+
           if [ -z "$pr_number" ]; then
             echo "Could not determine PR number from commit message."
             echo "found_pr=false" >> $GITHUB_OUTPUT
