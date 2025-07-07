@@ -297,11 +297,11 @@ jobs:
         id: find_pr
         run: |
           # Try to find PR number from standard merge commit message
-          pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=Merge pull request #)\d+')
+          pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=Merge pull request #)\d+' || true)
 
           # If not found, try to find PR number from squash merge commit message
           if [ -z "$pr_number" ]; then
-            pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=#)\d+(?=\)$)')
+            pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=#)\d+(?=\)$)' || true)
           fi
 
           if [ -z "$pr_number" ]; then
