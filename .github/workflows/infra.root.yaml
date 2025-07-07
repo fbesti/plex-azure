@@ -111,6 +111,7 @@ jobs:
         run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
 
       - name: Add Firewall Rule to Storage Account
+        id: add_fw_rule
         if: steps.check_container.outputs.exists == 'false'
         run: |
           az storage account network-rule add \
@@ -120,6 +121,7 @@ jobs:
           sleep 30
 
       - name: Create Storage Container
+        id: create_container
         if: steps.check_container.outputs.exists == 'false'
         run: |
           az storage container create \
@@ -128,6 +130,7 @@ jobs:
             --auth-mode login
 
       - name: Remove Firewall Rule from Storage Account
+        id: remove_fw_rule
         if: always() && steps.check_container.outputs.exists == 'false'
         run: |
           az storage account network-rule remove \

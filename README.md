@@ -23,7 +23,7 @@ These secrets should be added to your repository's `Settings > Secrets and varia
 ### Example Workflow
 
 ```yaml
-name: Deploy Plex Infrastructure
+name: Deploy Azure Infrastructure
 
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Plex Azure Action
+      - name: Run Azure Action
         uses: fbesti/plex-azure@main
         with:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
