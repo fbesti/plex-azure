@@ -19,7 +19,7 @@ This workflow is responsible for managing Azure infrastructure using OpenTofu.
 1.  **`setup_opentofu_backend`**:
     *   **Purpose**: Initializes and ensures the existence of the Azure Resource Group, Storage Account, and Blob Container used for storing OpenTofu state files.
     *   **Execution**: This job runs conditionally on `pull_request` events and `workflow_dispatch` (manual trigger). It is designed to set up the backend resources once and does not need to run on every `push` to `main`.
-    *   **Conditions**: If step: check_container outputs false the subsequent steps: get_ip, add_fw_rule, create_container and remove_fw_rule, should run. If the output is false the subsequent steps should not run
+    *   **Conditions**: If step: check_container outputs false the subsequent steps: create_container should run.
 
 2.  **`opentofu_plan`**:
     *   **Purpose**: Generates an OpenTofu plan (`tfplan`) and uploads it as a workflow artifact. This plan represents the proposed infrastructure changes.
@@ -28,7 +28,7 @@ This workflow is responsible for managing Azure infrastructure using OpenTofu.
 
 3.  **`opentofu_apply`**:
     *   **Purpose**: Applies the OpenTofu plan to provision or update the Azure infrastructure.
-    *   **Execution**: This job runs exclusively on `push` events to the `main` branch.
+    *   **Execution**: This job runs exclusively on `push` events to the `main` branch. This Job should only run when the opentofu_plan job outputs tf_plan changes to the infrastructure defined in env: WORKING_DIR
     *   **Plan Artifact Usage**: Instead of generating a new plan, this job downloads the `opentofu-plan` artifact from the corresponding pull request's workflow run. This ensures that the exact plan reviewed and approved during the pull request is applied.
     *   **Dependency**: This job depends on `setup_opentofu_backend` to ensure the state backend is configured, but it does *not* depend on `opentofu_plan` directly, allowing it to run even if `opentofu_plan` was skipped on the `main` branch push.
     *   **Tools Used**: `tofu init`, `tofu apply`, `dawidd6/action-download-artifact@v3` (for downloading the plan artifact).
