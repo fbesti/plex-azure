@@ -23,7 +23,7 @@ permissions:
   actions: read
 
 jobs:
-  setup_opentofu_backend:
+  verify_backend:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
@@ -148,7 +148,7 @@ jobs:
   opentofu_plan:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    needs: setup_opentofu_backend
+    needs: verify_backend
     environment: production
     env:
       WORKING_DIR: ./infrastructure/azure
