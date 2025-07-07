@@ -10,6 +10,12 @@ variable "resource_group_name" {
   default     = "rg-plex-cert"
 }
 
+variable "resource_group_name_test" {
+  description = "The name of the resource group."
+  type        = string
+  default     = "rg-test-cert"
+}
+
 variable "remote_state_subscription_id" {
   description = "The subscription ID of the remote state storage account. Extreme secret shit"
   type        = string

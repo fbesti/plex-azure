@@ -96,28 +96,26 @@ jobs:
             --resource-group ${{ env.TF_STATE_RG }} \
             --enable-versioning true
 
-      - name: Check if Container exists
-        id: check_container
-        run: |
-          if az storage container show --name ${{ env.TF_STATE_CONTAINER }} --account-name ${{ env.TF_STATE_SA }} --output none 2>/dev/null; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Get Runner IP Address
         id: get_ip
-        if: steps.check_container.outputs.exists == 'false'
         run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
 
       - name: Add Firewall Rule to Storage Account
-        if: steps.check_container.outputs.exists == 'false'
         run: |
           az storage account network-rule add \
             --account-name ${{ env.TF_STATE_SA }} \
             --resource-group ${{ env.TF_STATE_RG }} \
             --ip-address ${{ steps.get_ip.outputs.runner_ip }}
           sleep 30
+
+      - name: Check if Container exists
+        id: check_container
+        run: |
+          if az storage container show --name ${{ env.TF_STATE_CONTAINER }} --account-name ${{ env.TF_STATE_SA }} --auth-mode login --output none 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Storage Container
         if: steps.check_container.outputs.exists == 'false'
@@ -128,7 +126,7 @@ jobs:
             --auth-mode login
 
       - name: Remove Firewall Rule from Storage Account
-        if: always() && steps.check_container.outputs.exists == 'false'
+        if: always()
         run: |
           az storage account network-rule remove \
             --account-name ${{ env.TF_STATE_SA }} \
