@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   setup_opentofu_backend:
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -292,7 +292,7 @@ jobs:
       - name: Find PR number from merge commit
         id: find_pr
         run: |
-          pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=Merge pull request #)\d+')
+          pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=Merge pull request #)\d+' || true)
           if [ -z "$pr_number" ]; then
             echo "Could not determine PR number from commit message."
             echo "found_pr=false" >> $GITHUB_OUTPUT
