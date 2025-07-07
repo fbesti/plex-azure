@@ -1,6 +1,7 @@
-# Plex Azure GitHub Action
+# Azure GitHub Action
 
-This GitHub Action sets up the necessary Azure infrastructure for Plex.
+This GitHub Action can be used to setup any infrastructure in Azure.
+It uses Open Tofu as a primary tool.
 
 ## Prerequisites
 
