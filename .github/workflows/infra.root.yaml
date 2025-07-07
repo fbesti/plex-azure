@@ -364,7 +364,7 @@ jobs:
         run: tofu apply -auto-approve tfplan
 
       - name: Remove Firewall Rule from Storage Account
-        if: steps.check_plan.outputs.plan_exists == 'true'
+        if: always() && steps.check_plan.outputs.plan_exists == 'true'
         run: |
           az storage account network-rule remove \
             --account-name ${{ vars.TF_STATE_SA }} \
