@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   setup_opentofu_backend:
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -105,7 +105,8 @@ jobs:
           az storage account network-rule add \
             --account-name ${{ env.TF_STATE_SA }} \
             --resource-group ${{ env.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
           sleep 30
 
       - name: Check if Container exists
@@ -131,7 +132,8 @@ jobs:
           az storage account network-rule remove \
             --account-name ${{ env.TF_STATE_SA }} \
             --resource-group ${{ env.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
 
 
   opentofu_plan:
@@ -178,7 +180,8 @@ jobs:
           az storage account network-rule add \
             --account-name ${{ vars.TF_STATE_SA }} \
             --resource-group ${{ vars.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
           sleep 30
 
       - name: OpenTofu Format Check
@@ -240,7 +243,8 @@ jobs:
           az storage account network-rule remove \
             --account-name ${{ vars.TF_STATE_SA }} \
             --resource-group ${{ vars.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
 
 
   opentofu_apply:
@@ -286,13 +290,14 @@ jobs:
           az storage account network-rule add \
             --account-name ${{ vars.TF_STATE_SA }} \
             --resource-group ${{ vars.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
           sleep 30
 
       - name: Find PR number from merge commit
         id: find_pr
         run: |
-          pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=Merge pull request #)\d+')
+          pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=Merge pull request #)\d+' || true)
           if [ -z "$pr_number" ]; then
             echo "Could not determine PR number from commit message."
             echo "found_pr=false" >> $GITHUB_OUTPUT
@@ -335,6 +340,7 @@ jobs:
           az storage account network-rule remove \
             --account-name ${{ vars.TF_STATE_SA }} \
             --resource-group ${{ vars.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }}
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
 
             
