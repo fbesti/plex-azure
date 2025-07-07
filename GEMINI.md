@@ -30,7 +30,7 @@ This workflow is responsible for managing Azure infrastructure using OpenTofu.
     *   **Purpose**: Applies the OpenTofu plan to provision or update the Azure infrastructure.
     *   **Execution**: This job runs exclusively on `push` events to the `main` branch. This Job should only run when the opentofu_plan job outputs tf_plan changes to the infrastructure defined in env: WORKING_DIR
     *   **Plan Artifact Usage**: Instead of generating a new plan, this job downloads the `opentofu-plan` artifact from the corresponding pull request's workflow run. This ensures that the exact plan reviewed and approved during the pull request is applied.
-    *   **Dependency**: This job depends on `setup_opentofu_backend` to ensure the state backend is configured, but it does *not* depend on `opentofu_plan` directly, allowing it to run even if `opentofu_plan` was skipped on the `main` branch push.
+    *   **Dependency**: This job does not depend on `opentofu_plan` directly, allowing it to run even if `opentofu_plan` was skipped on the `main` branch push. It also does not have a dependency on `setup_opentofu_backend` and relies on the fact that the backend infrastructure is already provisioned.
     *   **Tools Used**: `tofu init`, `tofu apply`, `dawidd6/action-download-artifact@v3` (for downloading the plan artifact).
 
 4.  **Security is Paramount:**
