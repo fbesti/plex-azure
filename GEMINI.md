@@ -16,7 +16,7 @@ This workflow is responsible for managing Azure infrastructure using OpenTofu.
     *   Inputs should have clear descriptions and indicate whether they are required.
 ### Key Jobs for the Action:
 
-1.  **`setup_opentofu_backend`**:
+1.  **`verify_backend`**:
     *   **Purpose**: Initializes and ensures the existence of the Azure Resource Group, Storage Account, and Blob Container used for storing OpenTofu state files.
     *   **Execution**: This job runs conditionally on `pull_request` events and `workflow_dispatch` (manual trigger). It is designed to set up the backend resources once and does not need to run on every `push` to `main`.
     *   **Conditions**: If step: check_container outputs false the subsequent steps: create_container should run.
@@ -30,7 +30,7 @@ This workflow is responsible for managing Azure infrastructure using OpenTofu.
     *   **Purpose**: Applies the OpenTofu plan to provision or update the Azure infrastructure.
     *   **Execution**: This job runs exclusively on `push` events to the `main` branch. This Job should only run when the opentofu_plan job outputs tf_plan changes to the infrastructure defined in env: WORKING_DIR
     *   **Plan Artifact Usage**: Instead of generating a new plan, this job downloads the `opentofu-plan` artifact from the corresponding pull request's workflow run. This ensures that the exact plan reviewed and approved during the pull request is applied.
-    *   **Dependency**: This job does not depend on `opentofu_plan` directly, allowing it to run even if `opentofu_plan` was skipped on the `main` branch push. It also does not have a dependency on `setup_opentofu_backend` and relies on the fact that the backend infrastructure is already provisioned.
+    *   **Dependency**: This job does not depend on `opentofu_plan` directly, allowing it to run even if `opentofu_plan` was skipped on the `main` branch push. It also does not have a dependency on `verify_backend` and relies on the fact that the backend infrastructure is already provisioned.
     *   **Tools Used**: `tofu init`, `tofu apply`, `dawidd6/action-download-artifact@v3` (for downloading the plan artifact).
 
 4.  **Security is Paramount:**
@@ -49,11 +49,21 @@ This workflow is responsible for managing Azure infrastructure using OpenTofu.
 *   **OIDC**: Azure login uses OpenID Connect (OIDC) for secure authentication.
 *   **Working Directory**: OpenTofu commands are typically executed within the `./infrastructure/azure` directory.
 
+### Purpose of @infrastructure folder
+1. Store tf file templates for different Cloud Providers Google Cloud Platform (gcp), Microsoft Azure (azure) and Amazon (aws).
+
 ### Your Role in Development
 
 When asked to modify the action, you should:
 
-1.  **Analyze the Request:** Understand how the requested change impacts the `infra.root.yml`, the shell scripts, and the documentation.
-2.  **Plan Your Changes:** Propose a plan that includes modifications to all relevant files.
+1.  **Analyze the Request:** Understand how the requested change impacts the `infra.root.yml` actions workflow, the shell scripts, the output artifacts, and the documentation.
+2.  **Plan Your Changes:** Propose a plan that includes modifications to all relevant files. Always include creating a backup `infra.root.yml` file.
 3.  **Implement and Verify:** Make the changes and ensure the action still functions as expected. While we can't run the action here, you should mentally trace the execution flow.
+4.  **Update Documentation:** Ensure the `README.md` and any relevant examples are updated to reflect your changes.
+
+When asked to update templates, you should:
+
+1.  **Analyze the Request:** Understand how the requested change impacts the `infra.root.yml` actions workflow, the shell scripts, the output artifacts, and the documentation.
+2.  **Plan Your Changes:** Propose a plan that includes modifications to all relevant files. Always include creating a backup `infra.root.yml` file.
+3.  **Implement and Verify:** Make the changes and ensure the action: `tofu init`, `tofu plan` still functions as expected. While we can't run the actions here, you should mentally trace the execution flow.
 4.  **Update Documentation:** Ensure the `README.md` and any relevant examples are updated to reflect your changes.
