@@ -106,7 +106,6 @@ jobs:
             --account-name ${{ env.TF_STATE_SA }} \
             --resource-group ${{ env.TF_STATE_RG }} \
             --enable-versioning true
-            --output none
 
       - name: Get Runner IP Address
         id: get_ip
