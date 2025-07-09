@@ -86,6 +86,7 @@ jobs:
           fi
 
       - name: Create Storage Account
+        id: create_sa
         if: steps.check_sa.outputs.exists == 'false'
         run: |
           az storage account create \
@@ -97,6 +98,7 @@ jobs:
             --access-tier ${{ env.AZURE_SA_TIER }} \
             --allow-blob-public-access false \
             --min-tls-version TLS1_2
+            --output none
 
       - name: Enable versioning on Storage Account
         run: |
@@ -134,6 +136,7 @@ jobs:
             --name ${{ env.TF_STATE_CONTAINER }} \
             --account-name ${{ env.TF_STATE_SA }} \
             --auth-mode login
+            --output none
 
       - name: Remove Firewall Rule from Storage Account
         if: always()
