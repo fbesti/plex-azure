@@ -1,0 +1,152 @@
+name: Reusable - OpenTofu Apply
+
+on: 
+  workflow_call:
+    inputs:
+      TF_STATE_RG:
+        description: 'Azure Resource Group for Terraform state'
+        required: true
+        type: string
+      TF_STATE_SA:
+        description: 'Azure Storage Account for Terraform state'
+        required: true
+        type: string
+      TF_STATE_CONTAINER:
+        description: 'Azure Blob Container for Terraform state'
+        required: true
+        type: string
+      TF_STATE_KEY:
+        description: 'Azure Blob Storage Key for Terraform state file'
+        required: true
+        type: string
+      HEAD_COMMIT_MESSAGE:
+        description: 'The head commit message'
+        required: true
+        type: string
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+jobs:
+  opentofu_apply:
+    name: OpenTofu Apply
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      WORKING_DIR: ./infrastructure/azure
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: latest
+          tofu_wrapper: false
+
+      - name: Azure Login using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set Azure Environment Variables for OpenTofu
+        run: |
+          echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
+          echo "TF_VAR_remote_state_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_remote_state_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+
+      - name: Find PR number from merge commit
+        id: find_pr
+        run: |
+          # Try to find PR number from standard merge commit message
+          pr_number=$(echo "${{ inputs.HEAD_COMMIT_MESSAGE }}" | grep -oP '(?<=Merge pull request #)\d+' || true)
+
+          # If not found, try to find PR number from squash merge commit message
+          if [ -z "$pr_number" ]; then
+            pr_number=$(echo "${{ inputs.HEAD_COMMIT_MESSAGE }}" | grep -oP '(?<=#)\d+(?=\)$)' || true)
+          fi
+
+          if [ -z "$pr_number" ]; then
+            echo "Could not determine PR number from commit message."
+            echo "found_pr=false" >> $GITHUB_OUTPUT
+          else
+            echo "Found PR number: $pr_number"
+            echo "found_pr=true" >> $GITHUB_OUTPUT
+            echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Download Plan Artifact
+        id: download_artifact
+        if: steps.find_pr.outputs.found_pr == 'true'
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          name: opentofu-plan-${{ steps.find_pr.outputs.pr_number }}
+          path: ${{ env.WORKING_DIR }}
+          workflow: ${{ github.workflow_id }}
+          pr: ${{ steps.find_pr.outputs.pr_number }}
+          workflow_conclusion: success
+          if_no_artifact_found: 'ignore'
+          
+      - name: Check for Plan File
+        id: check_plan
+        run: |
+          if [ -f "${{ env.WORKING_DIR }}/tfplan" ]; then
+            echo "plan_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "No plan found. Skipping apply."
+            echo "plan_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get Runner IP Address
+        id: get_ip
+        if: steps.check_plan.outputs.plan_exists == 'true'
+        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Add Firewall Rule to Storage Account
+        if: steps.check_plan.outputs.plan_exists == 'true'
+        run: |
+          az storage account network-rule add \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
+          sleep 30
+
+      - name: OpenTofu Initialize
+        if: steps.check_plan.outputs.plan_exists == 'true'
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          tofu init \
+            -backend-config="resource_group_name=${{ inputs.TF_STATE_RG }}" \
+            -backend-config="storage_account_name=${{ inputs.TF_STATE_SA }}" \
+            -backend-config="container_name=${{ inputs.TF_STATE_CONTAINER }}" \
+            -backend-config="key=${{ inputs.TF_STATE_KEY }}"
+
+      - name: OpenTofu Apply
+        if: steps.check_plan.outputs.plan_exists == 'true'
+        working-directory: ${{ env.WORKING_DIR }}
+        run: tofu apply -auto-approve tfplan
+
+      - name: Remove Firewall Rule from Storage Account
+        if: always() && steps.check_plan.outputs.plan_exists == 'true'
+        run: |
+          az storage account network-rule remove \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
