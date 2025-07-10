@@ -16,12 +16,6 @@ on:
       name:
         description: "Open Tofuc CI/CD Infrastructure Workflow"
 
-# Configure OIDC permissions
-permissions:
-  id-token: write
-  contents: read
-  actions: read
-
 env:
   TF_STATE_RG: ${{ vars.TF_STATE_RG }}
   TF_STATE_SA: ${{ vars.TF_STATE_SA }}
@@ -33,10 +27,17 @@ env:
   AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
   WORKING_DIR: ./infrastructure/azure
 
+# Configure OIDC permissions
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
 jobs:
   verify_backend:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/reusable-verify-backend.yaml
+    secrets: inherit
     with:
       TF_STATE_RG: ${{ env.TF_STATE_RG }}
       TF_STATE_SA: ${{ env.TF_STATE_SA }}
@@ -56,6 +57,7 @@ jobs:
     if: github.event_name == 'pull_request'
     needs: verify_backend
     uses: ./.github/workflows/reusable-opentofu-plan.yaml
+    secrets: inherit
     with:
       TF_STATE_RG: ${{ env.TF_STATE_RG }}
       TF_STATE_SA: ${{ env.TF_STATE_SA }}
@@ -71,6 +73,7 @@ jobs:
   opentofu_apply:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/reusable-opentofu-apply.yaml
+    secrets: inherit
     with:
       TF_STATE_RG: ${{ env.TF_STATE_RG }}
       TF_STATE_SA: ${{ env.TF_STATE_SA }}
