@@ -3,7 +3,7 @@ name: Reusable - Verify Azure Backend
 on: 
   workflow_call:
     inputs:
-      TF_STATE_RG:
+      OT_STATE_RG:
         description: 'Azure Resource Group for Terraform state'
         required: true
         type: string
@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     outputs:
-      tf_state_rg: ${{ inputs.TF_STATE_RG }}
+      tf_state_rg: ${{ inputs.OT_STATE_RG }}
       tf_state_sa: ${{ inputs.TF_STATE_SA }}
       tf_state_container: ${{ inputs.TF_STATE_CONTAINER }}
       tf_state_key: ${{ inputs.TF_STATE_KEY }}
@@ -90,7 +90,7 @@ jobs:
       - name: Check if Resource Group exists
         id: check_rg
         run: |
-          if az group show --name ${{ inputs.TF_STATE_RG }} --output none 2>/dev/null; then
+          if az group show --name ${{ inputs.OT_STATE_RG }} --output none 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT

@@ -28,7 +28,7 @@ jobs:
     uses: ./.github/workflows/reusable-verify-backend.yaml
     secrets: inherit
     with:
-      TF_STATE_RG: ${{ vars.TF_STATE_RG }}
+      OT_STATE_RG: ${{ vars.TF_STATE_RG }}
       TF_STATE_SA: ${{ vars.TF_STATE_SA }}
       TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
       TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
