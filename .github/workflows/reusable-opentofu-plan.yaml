@@ -47,7 +47,6 @@ permissions:
 jobs:
   opentofu_plan:
     runs-on: ubuntu-latest
-    environment: production
     outputs:
       plan_changes: ${{ steps.plan.outputs.plan_changes }}
     steps:
