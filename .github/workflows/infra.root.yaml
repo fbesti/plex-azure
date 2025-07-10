@@ -27,12 +27,10 @@ permissions:
   actions: read
 
 jobs:
-  verify_backend:
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    uses: ./.github/workflows/reusable-verify-backend.yaml
-    secrets: inherit
+  setup:
+    runs-on: ubuntu-latest
     environment: production
-    with:
+    outputs:
       TF_STATE_RG: ${{ vars.TF_STATE_RG }}
       TF_STATE_SA: ${{ vars.TF_STATE_SA }}
       TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
@@ -41,32 +39,49 @@ jobs:
       AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
       AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
       AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
+    steps:
+      - name: Output environment variables
+        run: echo "Sourced variables from the 'production' environment."
+
+  verify_backend:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: setup
+    uses: ./.github/workflows/reusable-verify-backend.yaml
+    secrets: inherit
+    with:
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
+      AZURE_LOCATION: ${{ needs.setup.outputs.AZURE_LOCATION }}
+      AZURE_SA_SKU: ${{ needs.setup.outputs.AZURE_SA_SKU }}
+      AZURE_SA_KIND: ${{ needs.setup.outputs.AZURE_SA_KIND }}
+      AZURE_SA_TIER: ${{ needs.setup.outputs.AZURE_SA_TIER }}
 
 
   opentofu_plan:
     if: github.event_name == 'pull_request'
-    needs: verify_backend
+    needs: [setup, verify_backend]
     uses: ./.github/workflows/reusable-opentofu-plan.yaml
     secrets: inherit
-    environment: production
     with:
-      TF_STATE_RG: ${{ vars.TF_STATE_RG }}
-      TF_STATE_SA: ${{ vars.TF_STATE_SA }}
-      TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
       PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
       WORKING_DIR: ./infrastructure/azure
 
   opentofu_apply:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: setup
     uses: ./.github/workflows/reusable-opentofu-apply.yaml
     secrets: inherit
-    environment: production
     with:
-      TF_STATE_RG: ${{ vars.TF_STATE_RG }}
-      TF_STATE_SA: ${{ vars.TF_STATE_SA }}
-      TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
       HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
       WORKING_DIR: ./infrastructure/azure
             
