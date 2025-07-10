@@ -16,17 +16,6 @@ on:
       name:
         description: "Open Tofuc CI/CD Infrastructure Workflow"
 
-env:
-  TF_STATE_RG: ${{ vars.TF_STATE_RG }}
-  TF_STATE_SA: ${{ vars.TF_STATE_SA }}
-  TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
-  TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
-  AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
-  AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
-  AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
-  AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
-  WORKING_DIR: ./infrastructure/azure
-
 # Configure OIDC permissions
 permissions:
   id-token: write
