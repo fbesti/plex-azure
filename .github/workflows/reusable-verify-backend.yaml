@@ -64,8 +64,6 @@ jobs:
   verify_backend:
     runs-on: ubuntu-latest
     environment: production
-    env:
-      WORKING_DIR: ./infrastructure/azure
     outputs:
       tf_state_rg: ${{ inputs.TF_STATE_RG }}
       tf_state_sa: ${{ inputs.TF_STATE_SA }}

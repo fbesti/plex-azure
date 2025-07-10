@@ -23,6 +23,10 @@ on:
         description: 'The head commit message'
         required: true
         type: string
+      WORKING_DIR:
+        description: 'The working directory for OpenTofu'
+        required: true
+        type: string
     secrets:
       AZURE_CLIENT_ID:
         required: true
@@ -41,8 +45,6 @@ jobs:
     name: OpenTofu Apply
     runs-on: ubuntu-latest
     environment: production
-    env:
-      WORKING_DIR: ./infrastructure/azure
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -96,7 +98,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v3
         with:
           name: opentofu-plan-${{ steps.find_pr.outputs.pr_number }}
-          path: ${{ env.WORKING_DIR }}
+          path: ${{ inputs.WORKING_DIR }}
           workflow: ${{ github.workflow_id }}
           pr: ${{ steps.find_pr.outputs.pr_number }}
           workflow_conclusion: success
@@ -105,7 +107,7 @@ jobs:
       - name: Check for Plan File
         id: check_plan
         run: |
-          if [ -f "${{ env.WORKING_DIR }}/tfplan" ]; then
+          if [ -f "${{ inputs.WORKING_DIR }}/tfplan" ]; then
             echo "plan_exists=true" >> $GITHUB_OUTPUT
           else
             echo "No plan found. Skipping apply."
@@ -129,7 +131,7 @@ jobs:
 
       - name: OpenTofu Initialize
         if: steps.check_plan.outputs.plan_exists == 'true'
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ inputs.WORKING_DIR }}
         run: |
           tofu init \
             -backend-config="resource_group_name=${{ inputs.TF_STATE_RG }}" \
@@ -139,7 +141,7 @@ jobs:
 
       - name: OpenTofu Apply
         if: steps.check_plan.outputs.plan_exists == 'true'
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ inputs.WORKING_DIR }}
         run: tofu apply -auto-approve tfplan
 
       - name: Remove Firewall Rule from Storage Account
