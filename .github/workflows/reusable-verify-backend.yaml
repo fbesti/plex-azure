@@ -65,20 +65,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     env:
-      TF_STATE_RG: ${{ inputs.TF_STATE_RG }}
-      TF_STATE_SA: ${{ inputs.TF_STATE_SA }}
-      TF_STATE_CONTAINER: ${{ inputs.TF_STATE_CONTAINER }}
-      TF_STATE_KEY: ${{ inputs.TF_STATE_KEY }}
-      AZURE_LOCATION: ${{ inputs.AZURE_LOCATION }}
-      AZURE_SA_SKU: ${{ inputs.AZURE_SA_SKU }}
-      AZURE_SA_KIND: ${{ inputs.AZURE_SA_KIND }}
-      AZURE_SA_TIER: ${{ inputs.AZURE_SA_TIER }}
       WORKING_DIR: ./infrastructure/azure
     outputs:
-      tf_state_rg: ${{ env.TF_STATE_RG }}
-      tf_state_sa: ${{ env.TF_STATE_SA }}
-      tf_state_container: ${{ env.TF_STATE_CONTAINER }}
-      tf_state_key: ${{ env.TF_STATE_KEY }}
+      tf_state_rg: ${{ inputs.TF_STATE_RG }}
+      tf_state_sa: ${{ inputs.TF_STATE_SA }}
+      tf_state_container: ${{ inputs.TF_STATE_CONTAINER }}
+      tf_state_key: ${{ inputs.TF_STATE_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -100,7 +92,7 @@ jobs:
       - name: Check if Resource Group exists
         id: check_rg
         run: |
-          if az group show --name ${{ env.TF_STATE_RG }} --output none 2>/dev/null; then
+          if az group show --name ${{ inputs.TF_STATE_RG }} --output none 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -110,13 +102,13 @@ jobs:
         if: steps.check_rg.outputs.exists == 'false'
         run: |
           az group create \
-            --name ${{ env.TF_STATE_RG }} \
-            --location ${{ env.AZURE_LOCATION }}
+            --name ${{ inputs.TF_STATE_RG }} \
+            --location ${{ inputs.AZURE_LOCATION }}
 
       - name: Check if Storage Account exists
         id: check_sa
         run: |
-          if az storage account show --name ${{ env.TF_STATE_SA }} --resource-group ${{ env.TF_STATE_RG }} --output none 2>/dev/null; then
+          if az storage account show --name ${{ inputs.TF_STATE_SA }} --resource-group ${{ inputs.TF_STATE_RG }} --output none 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -127,12 +119,12 @@ jobs:
         if: steps.check_sa.outputs.exists == 'false'
         run: |
           az storage account create \
-            --name ${{ env.TF_STATE_SA }} \
-            --resource-group ${{ env.TF_STATE_RG }} \
-            --location ${{ env.AZURE_LOCATION }} \
-            --sku ${{ env.AZURE_SA_SKU }} \
-            --kind ${{ env.AZURE_SA_KIND }} \
-            --access-tier ${{ env.AZURE_SA_TIER }} \
+            --name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
+            --location ${{ inputs.AZURE_LOCATION }} \
+            --sku ${{ inputs.AZURE_SA_SKU }} \
+            --kind ${{ inputs.AZURE_SA_KIND }} \
+            --access-tier ${{ inputs.AZURE_SA_TIER }} \
             --allow-blob-public-access false \
             --min-tls-version TLS1_2
             --output none
@@ -140,8 +132,8 @@ jobs:
       - name: Enable versioning on Storage Account
         run: |
           az storage account blob-service-properties update \
-            --account-name ${{ env.TF_STATE_SA }} \
-            --resource-group ${{ env.TF_STATE_RG }} \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
             --enable-versioning true
 
       - name: Get Runner IP Address
@@ -151,8 +143,8 @@ jobs:
       - name: Add Firewall Rule to Storage Account
         run: |
           az storage account network-rule add \
-            --account-name ${{ env.TF_STATE_SA }} \
-            --resource-group ${{ env.TF_STATE_RG }} \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
             --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
             --output none
           sleep 30
@@ -160,7 +152,7 @@ jobs:
       - name: Check if Container exists
         id: check_container
         run: |
-          if az storage container show --name ${{ env.TF_STATE_CONTAINER }} --account-name ${{ env.TF_STATE_SA }} --auth-mode login --output none 2>/dev/null; then
+          if az storage container show --name ${{ inputs.TF_STATE_CONTAINER }} --account-name ${{ inputs.TF_STATE_SA }} --auth-mode login --output none 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -170,8 +162,8 @@ jobs:
         if: steps.check_container.outputs.exists == 'false'
         run: |
           az storage container create \
-            --name ${{ env.TF_STATE_CONTAINER }} \
-            --account-name ${{ env.TF_STATE_SA }} \
+            --name ${{ inputs.TF_STATE_CONTAINER }} \
+            --account-name ${{ inputs.TF_STATE_SA }} \
             --auth-mode login
             --output none
 
@@ -179,7 +171,7 @@ jobs:
         if: always()
         run: |
           az storage account network-rule remove \
-            --account-name ${{ env.TF_STATE_SA }} \
-            --resource-group ${{ env.TF_STATE_RG }} \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
             --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
             --output none
