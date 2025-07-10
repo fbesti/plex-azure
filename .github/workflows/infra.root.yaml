@@ -16,6 +16,10 @@ on:
       name:
         description: "Open Tofuc CI/CD Infrastructure Workflow"
 
+env:
+  # Setting an environment variable with the value of a configuration variable
+  env_var: ${{ vars.ENV_CONTEXT_VAR }}
+
 # Configure OIDC permissions
 permissions:
   id-token: write
