@@ -22,19 +22,30 @@ permissions:
   contents: read
   actions: read
 
+env:
+  TF_STATE_RG: ${{ vars.TF_STATE_RG }}
+  TF_STATE_SA: ${{ vars.TF_STATE_SA }}
+  TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+  TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+  AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
+  AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
+  AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
+  WORKING_DIR: ./infrastructure/azure
+
 jobs:
   verify_backend:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/reusable-verify-backend.yaml
     with:
-      TF_STATE_RG: ${{ vars.TF_STATE_RG }}
-      TF_STATE_SA: ${{ vars.TF_STATE_SA }}
-      TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
-      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
-      AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
-      AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
-      AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
+      TF_STATE_RG: ${{ env.TF_STATE_RG }}
+      TF_STATE_SA: ${{ env.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ env.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ env.TF_STATE_KEY }}
+      AZURE_LOCATION: ${{ env.AZURE_LOCATION }}
+      AZURE_SA_SKU: ${{ env.AZURE_SA_SKU }}
+      AZURE_SA_KIND: ${{ env.AZURE_SA_KIND }}
+      AZURE_SA_TIER: ${{ env.AZURE_SA_TIER }}
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -46,12 +57,12 @@ jobs:
     needs: verify_backend
     uses: ./.github/workflows/reusable-opentofu-plan.yaml
     with:
-      TF_STATE_RG: ${{ vars.TF_STATE_RG }}
-      TF_STATE_SA: ${{ vars.TF_STATE_SA }}
-      TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+      TF_STATE_RG: ${{ env.TF_STATE_RG }}
+      TF_STATE_SA: ${{ env.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ env.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ env.TF_STATE_KEY }}
       PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-      WORKING_DIR: ./infrastructure/azure
+      WORKING_DIR: ${{ env.WORKING_DIR}}
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -61,12 +72,12 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/reusable-opentofu-apply.yaml
     with:
-      TF_STATE_RG: ${{ vars.TF_STATE_RG }}
-      TF_STATE_SA: ${{ vars.TF_STATE_SA }}
-      TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+      TF_STATE_RG: ${{ env.TF_STATE_RG }}
+      TF_STATE_SA: ${{ env.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ env.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ env.TF_STATE_KEY }}
       HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-      WORKING_DIR: ./infrastructure/azure
+      WORKING_DIR: ${{ env.WORKING_DIR}}
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
