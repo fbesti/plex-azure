@@ -1,0 +1,179 @@
+name: Reusable - Verify Azure Backend
+
+on: 
+  workflow_call:
+    inputs:
+      CLOUD_ENVIRONMENT:
+        description: 'Cloud environment'
+        required: true
+        type: string
+      TF_STATE_RG:
+        description: 'Azure Resource Group for Terraform state'
+        required: true
+        type: string
+      TF_STATE_SA:
+        description: 'Azure Storage Account for Terraform state'
+        required: true
+        type: string
+      TF_STATE_CONTAINER:
+        description: 'Azure Blob Container for Terraform state'
+        required: true
+        type: string
+      TF_STATE_KEY:
+        description: 'Azure Blob Storage Key for Terraform state file'
+        required: true
+        type: string
+      AZURE_LOCATION:
+        description: 'Azure region for resources'
+        required: true
+        type: string
+      AZURE_SA_SKU:
+        description: 'Azure Storage Account SKU'
+        required: true
+        type: string
+      AZURE_SA_KIND:
+        description: 'Azure Storage Account Kind'
+        required: true
+        type: string
+      AZURE_SA_TIER:
+        description: 'Azure Storage Account Tier'
+        required: true
+        type: string
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+    outputs:
+      tf_state_rg:
+        description: "Terraform State Azure Resource Group"
+        value: ${{ jobs.verify_backend.outputs.tf_state_rg }}
+      tf_state_sa:
+        description: "Terraform State Azure Storage Account"
+        value: ${{ jobs.verify_backend.outputs.tf_state_sa }}
+      tf_state_container:
+        description: "Terraform State Azure Storage Container"
+        value: ${{ jobs.verify_backend.outputs.tf_state_container }}
+      tf_state_key:
+        description: "Terraform State Key"
+        value: ${{ jobs.verify_backend.outputs.tf_state_key }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  verify_backend:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.CLOUD_ENVIRONMENT }}
+    outputs:
+      tf_state_rg: ${{ inputs.TF_STATE_RG }}
+      tf_state_sa: ${{ inputs.TF_STATE_SA }}
+      tf_state_container: ${{ inputs.TF_STATE_CONTAINER }}
+      tf_state_key: ${{ inputs.TF_STATE_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set Azure Environment Variables for OpenTofu
+        run: |
+          echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
+
+      - name: Check if Resource Group exists
+        id: check_rg
+        run: |
+          if az group show --name ${{ inputs.TF_STATE_RG }} --output none 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Resource Group
+        if: steps.check_rg.outputs.exists == 'false'
+        run: |
+          az group create \
+            --name ${{ inputs.TF_STATE_RG }} \
+            --location ${{ inputs.AZURE_LOCATION }}
+
+      - name: Check if Storage Account exists
+        id: check_sa
+        run: |
+          if az storage account show --name ${{ inputs.TF_STATE_SA }} --resource-group ${{ inputs.TF_STATE_RG }} --output none 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Storage Account
+        id: create_sa
+        if: steps.check_sa.outputs.exists == 'false'
+        run: |
+          az storage account create \
+            --name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
+            --location ${{ inputs.AZURE_LOCATION }} \
+            --sku ${{ inputs.AZURE_SA_SKU }} \
+            --kind ${{ inputs.AZURE_SA_KIND }} \
+            --access-tier ${{ inputs.AZURE_SA_TIER }} \
+            --allow-blob-public-access false \
+            --min-tls-version TLS1_2
+            --output none
+
+      - name: Enable versioning on Storage Account
+        run: |
+          az storage account blob-service-properties update \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
+            --enable-versioning true
+
+      - name: Get Runner IP Address
+        id: get_ip
+        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Add Firewall Rule to Storage Account
+        run: |
+          az storage account network-rule add \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
+          sleep 30
+
+      - name: Check if Container exists
+        id: check_container
+        run: |
+          if az storage container show --name ${{ inputs.TF_STATE_CONTAINER }} --account-name ${{ inputs.TF_STATE_SA }} --auth-mode login --output none 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Storage Container
+        if: steps.check_container.outputs.exists == 'false'
+        run: |
+          az storage container create \
+            --name ${{ inputs.TF_STATE_CONTAINER }} \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --auth-mode login
+            --output none
+
+      - name: Remove Firewall Rule from Storage Account
+        if: always()
+        run: |
+          az storage account network-rule remove \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none

@@ -23,11 +23,10 @@ permissions:
   actions: read
 
 jobs:
-  verify_backend:
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+  setup:
     runs-on: ubuntu-latest
     environment: production
-    env:
+    outputs:
       TF_STATE_RG: ${{ vars.TF_STATE_RG }}
       TF_STATE_SA: ${{ vars.TF_STATE_SA }}
       TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
@@ -36,343 +35,61 @@ jobs:
       AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
       AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
       AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
-      WORKING_DIR: ./infrastructure/azure
-    outputs:
-      tf_state_rg: ${{ env.TF_STATE_RG }}
-      tf_state_sa: ${{ env.TF_STATE_SA }}
-      tf_state_container: ${{ env.TF_STATE_CONTAINER }}
-      tf_state_key: ${{ vars.TF_STATE_KEY }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Output environment variables
+        run: echo "Sourced variables from the 'production' environment."
 
-      - name: Azure Login using OIDC
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Set Azure Environment Variables for OpenTofu
-        run: |
-          echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-          echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
-
-      - name: Check if Resource Group exists
-        id: check_rg
-        run: |
-          if az group show --name ${{ env.TF_STATE_RG }} --output none 2>/dev/null; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Resource Group
-        if: steps.check_rg.outputs.exists == 'false'
-        run: |
-          az group create \
-            --name ${{ env.TF_STATE_RG }} \
-            --location ${{ env.AZURE_LOCATION }}
-
-      - name: Check if Storage Account exists
-        id: check_sa
-        run: |
-          if az storage account show --name ${{ env.TF_STATE_SA }} --resource-group ${{ env.TF_STATE_RG }} --output none 2>/dev/null; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Storage Account
-        id: create_sa
-        if: steps.check_sa.outputs.exists == 'false'
-        run: |
-          az storage account create \
-            --name ${{ env.TF_STATE_SA }} \
-            --resource-group ${{ env.TF_STATE_RG }} \
-            --location ${{ env.AZURE_LOCATION }} \
-            --sku ${{ env.AZURE_SA_SKU }} \
-            --kind ${{ env.AZURE_SA_KIND }} \
-            --access-tier ${{ env.AZURE_SA_TIER }} \
-            --allow-blob-public-access false \
-            --min-tls-version TLS1_2
-            --output none
-
-      - name: Enable versioning on Storage Account
-        run: |
-          az storage account blob-service-properties update \
-            --account-name ${{ env.TF_STATE_SA }} \
-            --resource-group ${{ env.TF_STATE_RG }} \
-            --enable-versioning true
-
-      - name: Get Runner IP Address
-        id: get_ip
-        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
-
-      - name: Add Firewall Rule to Storage Account
-        run: |
-          az storage account network-rule add \
-            --account-name ${{ env.TF_STATE_SA }} \
-            --resource-group ${{ env.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
-            --output none
-          sleep 30
-
-      - name: Check if Container exists
-        id: check_container
-        run: |
-          if az storage container show --name ${{ env.TF_STATE_CONTAINER }} --account-name ${{ env.TF_STATE_SA }} --auth-mode login --output none 2>/dev/null; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Storage Container
-        if: steps.check_container.outputs.exists == 'false'
-        run: |
-          az storage container create \
-            --name ${{ env.TF_STATE_CONTAINER }} \
-            --account-name ${{ env.TF_STATE_SA }} \
-            --auth-mode login
-            --output none
-
-      - name: Remove Firewall Rule from Storage Account
-        if: always()
-        run: |
-          az storage account network-rule remove \
-            --account-name ${{ env.TF_STATE_SA }} \
-            --resource-group ${{ env.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
-            --output none
+  verify_backend:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: setup
+    uses: ./.github/workflows/reusable-verify-backend.yaml
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    with:
+      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
+      AZURE_LOCATION: ${{ needs.setup.outputs.AZURE_LOCATION }}
+      AZURE_SA_SKU: ${{ needs.setup.outputs.AZURE_SA_SKU }}
+      AZURE_SA_KIND: ${{ needs.setup.outputs.AZURE_SA_KIND }}
+      AZURE_SA_TIER: ${{ needs.setup.outputs.AZURE_SA_TIER }}
 
 
   opentofu_plan:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    needs: verify_backend
-    environment: production
-    env:
+    needs: [setup, verify_backend]
+    uses: ./.github/workflows/reusable-opentofu-plan.yaml
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    with:
+      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
+      PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
       WORKING_DIR: ./infrastructure/azure
-    outputs:
-      plan_changes: ${{ steps.plan.outputs.plan_changes }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@v1
-        with:
-          tofu_version: latest
-          tofu_wrapper: false
-
-      - name: Azure Login using OIDC
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Set Azure Environment Variables for OpenTofu
-        run: |
-          echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-          echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
-          echo "TF_VAR_remote_state_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-          echo "TF_VAR_remote_state_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-
-      - name: Get Runner IP Address
-        id: get_ip
-        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
-
-      - name: Add Firewall Rule to Storage Account
-        run: |
-          az storage account network-rule add \
-            --account-name ${{ vars.TF_STATE_SA }} \
-            --resource-group ${{ vars.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
-            --output none
-          sleep 30
-
-      - name: OpenTofu Format Check
-        working-directory: ${{ env.WORKING_DIR }}
-        run: tofu fmt -check -recursive
-
-      - name: OpenTofu Initialize
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          tofu init \
-            -backend-config="resource_group_name=${{ vars.TF_STATE_RG }}" \
-            -backend-config="storage_account_name=${{ vars.TF_STATE_SA }}" \
-            -backend-config="container_name=${{ vars.TF_STATE_CONTAINER }}" \
-            -backend-config="key=${{ vars.TF_STATE_KEY }}"
-
-      - name: OpenTofu Validate
-        working-directory: ${{ env.WORKING_DIR }}
-        run: tofu validate
-
-      - name: OpenTofu Plan
-        id: plan
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          tofu plan -out=tfplan -detailed-exitcode || exit_code=$?
-          if [ $exit_code -eq 1 ]; then
-            echo "OpenTofu plan failed"
-            exit 1
-          elif [ $exit_code -eq 2 ]; then
-            echo "OpenTofu plan succeeded with changes"
-            echo "PLAN_CHANGES=true" >> $GITHUB_ENV
-            echo "plan_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "OpenTofu plan succeeded with no changes"
-            echo "PLAN_CHANGES=false" >> $GITHUB_ENV
-            echo "plan_changes=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Save Plan Output
-        if: env.PLAN_CHANGES == 'true'
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          tofu show -no-color tfplan > plan_output.txt
-          echo "## OpenTofu Plan Output" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          cat plan_output.txt >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload Plan Artifact
-        if: env.PLAN_CHANGES == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: opentofu-plan-${{ github.event.pull_request.number }}
-          path: ${{ env.WORKING_DIR }}/tfplan
-          retention-days: 7
-
-      - name: Remove Firewall Rule from Storage Account
-        if: always()
-        run: |
-          az storage account network-rule remove \
-            --account-name ${{ vars.TF_STATE_SA }} \
-            --resource-group ${{ vars.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
-            --output none
-
 
   opentofu_apply:
-    name: OpenTofu Apply
-    runs-on: ubuntu-latest
-    environment: production
-    env:
-      WORKING_DIR: ./infrastructure/azure
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@v1
-        with:
-          tofu_version: latest
-          tofu_wrapper: false
-
-      - name: Azure Login using OIDC
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Set Azure Environment Variables for OpenTofu
-        run: |
-          echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-          echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-          echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
-          echo "TF_VAR_remote_state_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-          echo "TF_VAR_remote_state_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-
-
-      - name: Find PR number from merge commit
-        id: find_pr
-        run: |
-          # Try to find PR number from standard merge commit message
-          pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=Merge pull request #)\d+' || true)
-
-          # If not found, try to find PR number from squash merge commit message
-          if [ -z "$pr_number" ]; then
-            pr_number=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=#)\d+(?=\)$)' || true)
-          fi
-
-          if [ -z "$pr_number" ]; then
-            echo "Could not determine PR number from commit message."
-            echo "found_pr=false" >> $GITHUB_OUTPUT
-          else
-            echo "Found PR number: $pr_number"
-            echo "found_pr=true" >> $GITHUB_OUTPUT
-            echo "pr_number=$pr_number" >> $GITHUB_OUTPUT
-          fi
-        shell: bash
-
-      - name: Download Plan Artifact
-        id: download_artifact
-        if: steps.find_pr.outputs.found_pr == 'true'
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          name: opentofu-plan-${{ steps.find_pr.outputs.pr_number }}
-          path: ${{ env.WORKING_DIR }}
-          workflow: ${{ github.workflow_id }}
-          pr: ${{ steps.find_pr.outputs.pr_number }}
-          workflow_conclusion: success
-          if_no_artifact_found: 'ignore'
-          
-      - name: Check for Plan File
-        id: check_plan
-        run: |
-          if [ -f "${{ env.WORKING_DIR }}/tfplan" ]; then
-            echo "plan_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "No plan found. Skipping apply."
-            echo "plan_exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Get Runner IP Address
-        id: get_ip
-        if: steps.check_plan.outputs.plan_exists == 'true'
-        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
-
-      - name: Add Firewall Rule to Storage Account
-        if: steps.check_plan.outputs.plan_exists == 'true'
-        run: |
-          az storage account network-rule add \
-            --account-name ${{ vars.TF_STATE_SA }} \
-            --resource-group ${{ vars.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
-            --output none
-          sleep 30
-
-      - name: OpenTofu Initialize
-        if: steps.check_plan.outputs.plan_exists == 'true'
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          tofu init \
-            -backend-config="resource_group_name=${{ vars.TF_STATE_RG }}" \
-            -backend-config="storage_account_name=${{ vars.TF_STATE_SA }}" \
-            -backend-config="container_name=${{ vars.TF_STATE_CONTAINER }}" \
-            -backend-config="key=${{ vars.TF_STATE_KEY }}"
-
-      - name: OpenTofu Apply
-        if: steps.check_plan.outputs.plan_exists == 'true'
-        working-directory: ${{ env.WORKING_DIR }}
-        run: tofu apply -auto-approve tfplan
-
-      - name: Remove Firewall Rule from Storage Account
-        if: always() && steps.check_plan.outputs.plan_exists == 'true'
-        run: |
-          az storage account network-rule remove \
-            --account-name ${{ vars.TF_STATE_SA }} \
-            --resource-group ${{ vars.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
-            --output none
-
+    needs: setup
+    uses: ./.github/workflows/reusable-opentofu-apply.yaml
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    with:
+      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
+      HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+      WORKING_DIR: ./infrastructure/azure
             
