@@ -7,8 +7,39 @@ It uses Open Tofu as a primary tool.
 
 Before using this action, you must have the following Azure resources and credentials:
 
-*   An Azure subscription
-*   An Azure Service Principal with the `Contributor` role assigned at the subscription level.
+*   An Azure subscription.
+*   An Azure Service Principal. To adhere to the principle of least privilege, we recommend one of the following approaches:
+
+    **Option 1: (Recommended)**
+    1.  Manually create an Azure Resource Group to store the OpenTofu state files.
+    2.  Assign the `Contributor` role to your Service Principal **only on this Resource Group**.
+    3.  Manually create an Azure Storage Account inside this Resource Group.
+    4.  Assign the `Storage Blob Data Contributor` role to your Service Principal **on this Storage Account**.
+
+    **Option 2: (Most Secure)**
+    If you require more granular control, you can create a custom role with the following permissions and assign it to your Service Principal at the subscription level. This will allow the action to create the backend infrastructure for you.
+
+    ```json
+    {
+      "Name": "OpenTofu-GitHub-Action-Role",
+      "IsCustom": true,
+      "Description": "Custom role for the OpenTofu GitHub Action",
+      "Actions": [
+        "Microsoft.Resources/subscriptions/resourcegroups/read",
+        "Microsoft.Resources/subscriptions/resourcegroups/write",
+        "Microsoft.Storage/storageAccounts/read",
+        "Microsoft.Storage/storageAccounts/write",
+        "Microsoft.Storage/storageAccounts/blobServices/write",
+        "Microsoft.Storage/storageAccounts/listkeys/action"
+      ],
+      "NotActions": [],
+      "AssignableScopes": [
+        "/subscriptions/YOUR_SUBSCRIPTION_ID"
+      ]
+    }
+    ```
+
+    **Important:** The above permissions are only for the `verify_backend` workflow. The `opentofu_apply` workflow will require additional permissions based on the resources you are deploying. You should add those permissions to the custom role as needed. For example, if you are deploying a Virtual Network, you would need to add `Microsoft.Network/virtualNetworks/write`.
 
 ## Configuration
 
