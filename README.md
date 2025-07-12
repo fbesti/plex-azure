@@ -164,6 +164,12 @@ jobs:
       WORKING_DIR: ./infrastructure/azure # Adjust to your working directory
 ```
 
+### Workflow Explained
+
+*   **`verify_backend`**: This job initializes and ensures the existence of the Azure Resource Group, Storage Account, and Blob Container used for storing OpenTofu state files.
+*   **`opentofu_plan`**: This job generates an OpenTofu plan (`tfplan`) and uploads it as a workflow artifact. This plan represents the proposed infrastructure changes.
+*   **`opentofu_apply`**: This job applies the OpenTofu plan to provision or update the Azure infrastructure. It downloads the plan artifact from the pull request and applies it, ensuring that the exact plan that was reviewed is applied.
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request with your changes.
