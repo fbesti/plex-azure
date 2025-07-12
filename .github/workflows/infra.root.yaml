@@ -25,7 +25,6 @@ permissions:
 jobs:
   setup:
     runs-on: ubuntu-latest
-    environment: ${{ vars.CLOUD_ENVIRONMENT }}
     outputs:
       TF_STATE_RG: ${{ vars.TF_STATE_RG }}
       TF_STATE_SA: ${{ vars.TF_STATE_SA }}
@@ -49,7 +48,7 @@ jobs:
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     with:
-      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      CLOUD_ENVIRONMENT: ${{ needs.setup.outputs.CLOUD_ENVIRONMENT }}
       TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
       TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
       TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
@@ -69,7 +68,7 @@ jobs:
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     with:
-      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      CLOUD_ENVIRONMENT: ${{ needs.setup.outputs.CLOUD_ENVIRONMENT }}
       TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
       TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
       TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
@@ -86,7 +85,7 @@ jobs:
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     with:
-      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      CLOUD_ENVIRONMENT: ${{ needs.setup.outputs.CLOUD_ENVIRONMENT }}
       TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
       TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
       TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
