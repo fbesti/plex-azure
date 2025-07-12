@@ -166,6 +166,7 @@ jobs:
 
 ### Workflow Explained
 
+*   **`setup`**: This initial job is responsible for sourcing all the necessary variables from the specified GitHub Environment. **It is critical that this job includes the `environment:` key.** This key tells the job which GitHub Environment to connect to, allowing it to access the environment-specific variables (defined in `vars`) and pass them to the downstream jobs. Without it, all variables will be empty, and the workflow will fail.
 *   **`verify_backend`**: This job initializes and ensures the existence of the Azure Resource Group, Storage Account, and Blob Container used for storing OpenTofu state files.
 *   **`opentofu_plan`**: This job generates an OpenTofu plan (`tfplan`) and uploads it as a workflow artifact. This plan represents the proposed infrastructure changes.
 *   **`opentofu_apply`**: This job applies the OpenTofu plan to provision or update the Azure infrastructure. It downloads the plan artifact from the pull request and applies it, ensuring that the exact plan that was reviewed is applied.
