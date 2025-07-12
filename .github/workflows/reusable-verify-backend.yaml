@@ -3,6 +3,10 @@ name: Reusable - Verify Azure Backend
 on: 
   workflow_call:
     inputs:
+      CLOUD_ENVIRONMENT:
+        description: 'Cloud environment'
+        required: true
+        type: string
       TF_STATE_RG:
         description: 'Azure Resource Group for Terraform state'
         required: true
@@ -63,6 +67,7 @@ permissions:
 jobs:
   verify_backend:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.CLOUD_ENVIRONMENT }}
     outputs:
       tf_state_rg: ${{ inputs.TF_STATE_RG }}
       tf_state_sa: ${{ inputs.TF_STATE_SA }}
