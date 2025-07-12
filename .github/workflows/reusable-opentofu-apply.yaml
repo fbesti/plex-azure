@@ -3,6 +3,10 @@ name: Reusable - OpenTofu Apply
 on: 
   workflow_call:
     inputs:
+      CLOUD_ENVIRONMENT:
+        description: 'Cloud environment'
+        required: true
+        type: string
       TF_STATE_RG:
         description: 'Azure Resource Group for Terraform state'
         required: true
@@ -44,6 +48,7 @@ jobs:
   opentofu_apply:
     name: OpenTofu Apply
     runs-on: ubuntu-latest
+    environment: ${{ inputs.CLOUD_ENVIRONMENT }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

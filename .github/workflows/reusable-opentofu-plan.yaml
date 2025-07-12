@@ -3,6 +3,10 @@ name: Reusable - OpenTofu Plan
 on: 
   workflow_call:
     inputs:
+      CLOUD_ENVIRONMENT:
+        description: 'Cloud environment'
+        required: true
+        type: string
       TF_STATE_RG:
         description: 'Azure Resource Group for Terraform state'
         required: true
@@ -47,6 +51,7 @@ permissions:
 jobs:
   opentofu_plan:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.CLOUD_ENVIRONMENT }}
     outputs:
       plan_changes: ${{ steps.plan.outputs.plan_changes }}
     steps:
