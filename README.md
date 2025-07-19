@@ -1,7 +1,6 @@
-# Azure GitHub Action
+# Reusable Azure OpenTofu Workflows
 
-This GitHub Action can be used to setup any infrastructure in Azure.
-It uses Open Tofu as a primary tool.
+This repository provides a set of reusable GitHub Actions designed to manage your Azure infrastructure using OpenTofu. A key feature of these workflows is their ability to automatically bootstrap and verify the backend storage for your OpenTofu state file within the same Azure environment you intend to manage. This ensures a self-contained and streamlined IaC process from initialization to deployment.
 
 ## Secure Permissions Model
 
