@@ -43,7 +43,7 @@ jobs:
   verify_backend:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: setup
-    uses: fbesti/plex-azure/.github/workflows/reusable-verify-backend.yaml@main
+    uses: fbesti/ot-azure/.github/workflows/reusable-verify-backend.yaml@main
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -63,7 +63,7 @@ jobs:
   opentofu_plan:
     if: github.event_name == 'pull_request'
     needs: [setup, verify_backend]
-    uses: fbesti/plex-azure/.github/workflows/reusable-opentofu-plan.yaml@main
+    uses: fbesti/ot-azure/.github/workflows/reusable-opentofu-plan.yaml@main
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -80,7 +80,7 @@ jobs:
   opentofu_apply:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: setup
-    uses: fbesti/plex-azure/.github/workflows/reusable-opentofu-apply.yaml@main
+    uses: fbesti/ot-azure/.github/workflows/reusable-opentofu-apply.yaml@main
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
