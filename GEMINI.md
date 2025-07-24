@@ -116,6 +116,14 @@ When asked to do any changes to `reusable-opentofu-plan.yaml`,  `reusable-verify
 2.  **Plan Your Changes:** Propose a plan that includes modifications to all relevant files.
 3.  **Implement and Verify:** Make the changes and ensure the action: `tofu init`, `tofu plan` still functions as expected. While we can't run the actions here, you should mentally trace the execution flow.
 4.  **Update Documentation:** Ensure the `README.md` and any relevant examples are updated to reflect your changes.
+When asked to create tf files, know that those files will be deployed to Azure using the GitHub Actions Workflow that are created in this project, never locally on the users machine.
 
+## Querying Microsoft Documentation
 
+You have access to an MCP server called `microsoft.docs.mcp` - this tool allows you to search through Microsoft's latest official documentation, and that information might be more detailed or newer than what's in your training data set.
+
+When handling questions around how to work with native Microsoft technologies, such as C#, F#, ASP.NET Core, Microsoft.Extensions, NuGet, Entity Framework, the `dotnet` runtime - please use this tool for research purposes when dealing with specific / narrowly defined questions that may occur.
+
+You have access to an MCP server called `terraform` - this tool allows you to search through Terraform Registry for the latest properties
+When handling tasks about terraform file review use this mcp server for most accurate and uptodated information.
 
