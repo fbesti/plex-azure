@@ -1,4 +1,4 @@
-name: Azure Open Tofu Resources CI/CD Workflow
+name: Azure Terraform Resources CI/CD Workflow
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       name:
-        description: "Open Tofuc CI/CD Infrastructure Workflow"
+        description: "Terraform CI/CD Infrastructure Workflow"
 
 # Configure OIDC permissions
 permissions:
@@ -30,7 +30,7 @@ jobs:
       TF_STATE_RG: ${{ vars.TF_STATE_RG }}
       TF_STATE_SA: ${{ vars.TF_STATE_SA }}
       TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
-      TF_STATE_KEY: virtual-machine-packet-capture.tfstate
+      TF_STATE_KEY: network-watcher-flow-log.tfstate
       AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
       AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
       AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
@@ -43,7 +43,7 @@ jobs:
   verify_backend:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: setup
-    uses: fbesti/ot-azure/.github/workflows/reusable-verify-backend.yaml@main
+    uses: ./.github/workflows/reusable-terraform-verify-backend.yaml
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -60,10 +60,10 @@ jobs:
       AZURE_SA_TIER: ${{ needs.setup.outputs.AZURE_SA_TIER }}
 
 
-  opentofu_plan:
+  terraform_plan:
     if: github.event_name == 'pull_request'
     needs: [setup, verify_backend]
-    uses: fbesti/ot-azure/.github/workflows/reusable-opentofu-plan.yaml@main
+    uses: ./.github/workflows/reusable-terraform-plan.yaml
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -75,12 +75,12 @@ jobs:
       TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
       TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
       PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-      WORKING_DIR: ./infrastructure/azure/virtual_machine_packet_capture
+      WORKING_DIR: ./infrastructure/azure/network_watcher_flow_log
 
-  opentofu_apply:
+  terraform_apply:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: setup
-    uses: fbesti/ot-azure/.github/workflows/reusable-opentofu-apply.yaml@main
+    uses: ./.github/workflows/reusable-terraform-apply.yaml
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -92,4 +92,4 @@ jobs:
       TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
       TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
       HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-      WORKING_DIR: ./infrastructure/azure/virtual_machine_packet_capture
+      WORKING_DIR: ./infrastructure/azure/network_watcher_flow_log
