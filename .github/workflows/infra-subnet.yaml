@@ -3,14 +3,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - .github/workflows/infra.root.yaml
-      - infrastructure/azure/*
+      - .github/workflows/infra-subnet.yaml
+      - infrastructure/azure/subnet/**
   push:
     branches:
       - main
     paths:
-      - .github/workflows/infra.root.yaml
-      - infrastructure/azure/*
+      - .github/workflows/infra-subnet.yaml
+      - infrastructure/azure/subnet/**
   workflow_dispatch:
     inputs:
       name:
@@ -30,7 +30,7 @@ jobs:
       TF_STATE_RG: ${{ vars.TF_STATE_RG }}
       TF_STATE_SA: ${{ vars.TF_STATE_SA }}
       TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
-      TF_STATE_KEY: subnet.tfstate
+      TF_STATE_KEY: ${{ vars.TF_STATE_KEY_SUBNET }}
       AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
       AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
       AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
