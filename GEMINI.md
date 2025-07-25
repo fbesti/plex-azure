@@ -127,3 +127,4 @@ When handling questions around how to work with native Microsoft technologies, s
 You have access to an MCP server called `terraform` - this tool allows you to search through Terraform Registry for the latest properties
 When handling tasks about terraform file review use this mcp server for most accurate and uptodated information.
 
+When asked to create terraform modules use @/.modules folder
