@@ -5,7 +5,7 @@ resource "azurerm_resource_group" "this" {
 }
 
 module "vnet" {
-  source              = "../../.modules/vnet"
+  source = "../../../.modules/vnet"
   vnet_name           = "vnet-${var.app_gw_name}"
   address_space       = var.vnet_address_space
   location            = azurerm_resource_group.this.location
@@ -14,7 +14,7 @@ module "vnet" {
 }
 
 module "subnet" {
-  source               = "../../.modules/subnet"
+  source = "../../../.modules/subnet"
   subnet_name          = "snet-${var.app_gw_name}"
   resource_group_name  = azurerm_resource_group.this.name
   virtual_network_name = module.vnet.name
