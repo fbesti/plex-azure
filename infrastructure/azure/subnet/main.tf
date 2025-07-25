@@ -1,5 +1,5 @@
 module "subnet" {
-  source = "../../.modules/subnet"
+  source = "../../../.modules/subnet"
 
   subnet_name          = "example-subnet"
   resource_group_name  = "example-resources"

@@ -1,0 +1,95 @@
+name: Azure Open Tofu Resources CI/CD Workflow
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/infra.root.yaml
+      - infrastructure/azure/*
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/infra.root.yaml
+      - infrastructure/azure/*
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "Open Tofuc CI/CD Infrastructure Workflow"
+
+# Configure OIDC permissions
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    environment: ${{ vars.CLOUD_ENVIRONMENT }}
+    outputs:
+      TF_STATE_RG: ${{ vars.TF_STATE_RG }}
+      TF_STATE_SA: ${{ vars.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
+      AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
+      AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
+      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+    steps:
+      - name: Output environment variables
+        run: echo "Sourced variables from the ${{ vars.CLOUD_ENVIRONMENT }} environment."
+
+  verify_backend:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: setup
+    uses: fbesti/ot-azure/.github/workflows/reusable-verify-backend.yaml@main
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    with:
+      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
+      AZURE_LOCATION: ${{ needs.setup.outputs.AZURE_LOCATION }}
+      AZURE_SA_SKU: ${{ needs.setup.outputs.AZURE_SA_SKU }}
+      AZURE_SA_KIND: ${{ needs.setup.outputs.AZURE_SA_KIND }}
+      AZURE_SA_TIER: ${{ needs.setup.outputs.AZURE_SA_TIER }}
+
+
+  opentofu_plan:
+    if: github.event_name == 'pull_request'
+    needs: [setup, verify_backend]
+    uses: fbesti/ot-azure/.github/workflows/reusable-opentofu-plan.yaml@main
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    with:
+      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
+      PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+      WORKING_DIR: ./infrastructure/azure/virtual_machine_packet_capture
+
+  opentofu_apply:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: setup
+    uses: fbesti/ot-azure/.github/workflows/reusable-opentofu-apply.yaml@main
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    with:
+      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
+      HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+      WORKING_DIR: ./infrastructure/azure/virtual_machine_packet_capture

@@ -1,5 +1,5 @@
 module "virtual_machine_scale_set_packet_capture" {
-  source = "../../.modules/virtual_machine_scale_set_packet_capture"
+  source = "../../../.modules/virtual_machine_scale_set_packet_capture"
 
   name                                = "example-vmss-capture"
   network_watcher_id                  = "example-watcher-id"

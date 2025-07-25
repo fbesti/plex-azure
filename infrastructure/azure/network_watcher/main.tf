@@ -1,5 +1,5 @@
 module "network_watcher" {
-  source = "../../.modules/network_watcher"
+  source = "../../../.modules/network_watcher"
 
   name                = "example-watcher"
   location            = "West Europe"
