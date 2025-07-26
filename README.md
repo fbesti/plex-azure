@@ -1,6 +1,14 @@
-# Reusable Azure OpenTofu Workflows
+# Reusable Azure OpenTofu and Terraform Workflows
 
-This repository provides a set of reusable GitHub Actions designed to manage your Azure infrastructure using OpenTofu. A key feature of these workflows is their ability to automatically bootstrap and verify the backend storage for your OpenTofu state file within the same Azure environment you intend to manage. This ensures a self-contained and streamlined IaC process from initialization to deployment.
+This repository provides a set of reusable GitHub Actions designed to manage your Azure infrastructure using both OpenTofu and Terraform. A key feature of these workflows is their ability to automatically bootstrap and verify the backend storage for your state files within the same Azure environment you intend to manage. This ensures a self-contained and streamlined IaC process from initialization to deployment.
+
+## Workflow Types
+
+The repository includes workflows for both:
+- **OpenTofu**: Modern open-source Infrastructure as Code tool
+- **Terraform**: HashiCorp's Infrastructure as Code tool
+
+Both workflow types follow the same patterns and security models, differing only in the underlying IaC tool used.
 
 ## Secure Permissions Model
 
@@ -210,12 +218,84 @@ jobs:
       WORKING_DIR: ./infrastructure/azure
 ```
 
+## Terraform-Specific Workflows
+
+The repository also provides Terraform-specific workflows that follow the same patterns as the OpenTofu workflows:
+
+### Reusable Terraform Workflows
+
+- **`reusable-terraform-plan.yaml`**: Generates Terraform plans for pull request review
+- **`reusable-terraform-apply.yaml`**: Applies approved Terraform plans on merge to main
+- **`reusable-terraform-verify-backend.yaml`**: Verifies and bootstraps Terraform backend storage
+
+### Infrastructure-Specific Terraform Workflows
+
+- **`terraform-infra-network-watcher.yaml`**: Manages Azure Network Watcher resources using Terraform
+  - Working directory: `./infrastructure/azure/network_watcher`
+  - State key: `TF_STATE_KEY_NETWORK_WATCHER`
+  - Triggers on changes to network watcher infrastructure
+
+- **`terraform-infra-app-gateway.yaml`**: Manages Azure Application Gateway resources using Terraform
+  - Working directory: `./infrastructure/azure/app_gateway`
+  - State key: `TF_STATE_KEY_APP_GATEWAY`
+  - Triggers on changes to application gateway infrastructure
+
+### Example Terraform Workflow Usage
+
+To use the Terraform workflows, replace the OpenTofu workflow references in your workflow file:
+
+```yaml
+name: Azure Terraform Resources CI/CD Workflow
+
+# ... (same triggers and permissions as OpenTofu example)
+
+jobs:
+  setup:
+    # ... (same setup job as OpenTofu example)
+
+  verify_backend:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: setup
+    uses: ./.github/workflows/reusable-terraform-verify-backend.yaml
+    secrets:
+      # Use the highly privileged SP-Backend credentials ONLY for this job
+      AZURE_CLIENT_ID: ${{ secrets.SP_BACKEND_AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.SP_BACKEND_AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.SP_BACKEND_AZURE_SUBSCRIPTION_ID }}
+    with:
+      # ... (same parameters as OpenTofu example)
+
+  terraform_plan:
+    if: github.event_name == 'pull_request'
+    needs: [setup, verify_backend]
+    uses: ./.github/workflows/reusable-terraform-plan.yaml
+    secrets:
+      # Use the less privileged SP-Infra for daily plan/apply operations
+      AZURE_CLIENT_ID: ${{ secrets.SP_INFRA_AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.SP_INFRA_AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.SP_INFRA_AZURE_SUBSCRIPTION_ID }}
+    with:
+      # ... (same parameters as OpenTofu example)
+
+  terraform_apply:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: setup
+    uses: ./.github/workflows/reusable-terraform-apply.yaml
+    secrets:
+      # Use the less privileged SP-Infra for daily plan/apply operations
+      AZURE_CLIENT_ID: ${{ secrets.SP_INFRA_AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.SP_INFRA_AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.SP_INFRA_AZURE_SUBSCRIPTION_ID }}
+    with:
+      # ... (same parameters as OpenTofu example)
+```
+
 ### Workflow Explained
 
 *   **`setup`**: This initial job is responsible for sourcing all the necessary variables from the specified GitHub Environment. **It is critical that this job includes the `environment:` key.** This key tells the job which GitHub Environment to connect to, allowing it to access the environment-specific variables (defined in `vars`) and pass them to the downstream jobs. Without it, all variables will be empty, and the workflow will fail.
-*   **`verify_backend`**: This job initializes and ensures the existence of the Azure Resource Group, Storage Account, and Blob Container used for storing OpenTofu state files. It should be run with the highly privileged `SP-Backend` credentials.
-*   **`opentofu_plan`**: This job generates an OpenTofu plan (`tfplan`) and uploads it as a workflow artifact. This and the `apply` job should use the less-privileged `SP-Infra` credentials.
-*   **`opentofu_apply`**: This job applies the OpenTofu plan to provision or update the Azure infrastructure. It downloads the plan artifact from the pull request and applies it, ensuring that the exact plan that was reviewed is applied.
+*   **`verify_backend`**: This job initializes and ensures the existence of the Azure Resource Group, Storage Account, and Blob Container used for storing state files (OpenTofu or Terraform). It should be run with the highly privileged `SP-Backend` credentials.
+*   **`plan` job**: This job generates a plan (`tfplan`) and uploads it as a workflow artifact. This and the `apply` job should use the less-privileged `SP-Infra` credentials.
+*   **`apply` job**: This job applies the plan to provision or update the Azure infrastructure. It downloads the plan artifact from the pull request and applies it, ensuring that the exact plan that was reviewed is applied.
 
 ## Contributing
 

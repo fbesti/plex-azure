@@ -3,14 +3,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - .github/workflows/terraform-infra-network-watcher-flow-log.yaml
-      - infrastructure/azure/network_watcher_flow_log/**
+      - .github/workflows/terraform-infra-virtual-machine-packet-capture.yaml
+      - infrastructure/azure/virtual_machine_packet_capture/**
   push:
     branches:
       - main
     paths:
-      - .github/workflows/terraform-infra-network-watcher-flow-log.yaml
-      - infrastructure/azure/network_watcher_flow_log/**
+      - .github/workflows/terraform-infra-virtual-machine-packet-capture.yaml
+      - infrastructure/azure/virtual_machine_packet_capture/**
   workflow_dispatch:
     inputs:
       name:
@@ -30,7 +30,7 @@ jobs:
       TF_STATE_RG: ${{ vars.TF_STATE_RG }}
       TF_STATE_SA: ${{ vars.TF_STATE_SA }}
       TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY_NETWORK_WATCHER_FLOW_LOG }}
+      TF_STATE_KEY: ${{ vars.TF_STATE_KEY_VIRTUAL_MACHINE_PACKET_CAPTURE }}
       AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
       AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
       AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
@@ -43,7 +43,7 @@ jobs:
   verify_backend:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: setup
-    uses: ./.github/workflows/reusable-terraform-verify-backend.yaml
+    uses: ./.github/workflows/reusable-verify-backend.yaml
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -75,7 +75,7 @@ jobs:
       TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
       TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
       PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-      WORKING_DIR: ./infrastructure/azure/network_watcher_flow_log
+      WORKING_DIR: ./infrastructure/azure/virtual_machine_packet_capture
 
   terraform_apply:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -92,4 +92,4 @@ jobs:
       TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
       TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
       HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-      WORKING_DIR: ./infrastructure/azure/network_watcher_flow_log
+      WORKING_DIR: ./infrastructure/azure/virtual_machine_packet_capture

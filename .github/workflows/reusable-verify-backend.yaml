@@ -84,7 +84,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Set Azure Environment Variables for OpenTofu
+      - name: Set Azure Environment Variables
         run: |
           echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
           echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
@@ -177,3 +177,11 @@ jobs:
             --resource-group ${{ inputs.TF_STATE_RG }} \
             --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
             --output none
+
+      - name: Set outputs
+        id: set_outputs
+        run: |
+          echo "tf_state_rg=${{ inputs.TF_STATE_RG }}" >> $GITHUB_OUTPUT
+          echo "tf_state_sa=${{ inputs.TF_STATE_SA }}" >> $GITHUB_OUTPUT
+          echo "tf_state_container=${{ inputs.TF_STATE_CONTAINER }}" >> $GITHUB_OUTPUT
+          echo "tf_state_key=${{ inputs.TF_STATE_KEY }}" >> $GITHUB_OUTPUT

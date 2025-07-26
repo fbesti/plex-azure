@@ -43,7 +43,7 @@ jobs:
   verify_backend:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: setup
-    uses: ./.github/workflows/reusable-terraform-verify-backend.yaml
+    uses: ./.github/workflows/reusable-verify-backend.yaml
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
