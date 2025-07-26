@@ -62,7 +62,7 @@ infrastructure/
 ├── later                       # Disabled workflows
 ├── reusable-opentofu-*.yaml    # OpenTofu reusable workflows
 ├── reusable-terraform-*.yaml   # Terraform reusable workflows
-├── infra-*.yaml               # Infrastructure Example workflows
+├── opentofu-*.yaml               # Infrastructure OpenTofu workflows
 ├── terraform-*.yaml               # Infrastructure Terraform specific workflows
 
 infor/ # User Folder with md files for the User
