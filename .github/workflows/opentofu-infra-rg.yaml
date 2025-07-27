@@ -35,9 +35,11 @@ jobs:
       AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
       AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
       CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
-      TF_STATE_KEY: plex-prod.terraform.tfstate
-      WORKING_DIR: ./infrastructure/azure
     steps:
+      - id: vars
+        run: |
+          echo "TF_STATE_KEY=plex-prod.terraform.tfstate" >> "$GITHUB_OUTPUT"
+          echo "WORKING_DIR=./infrastructure/azure" >> "$GITHUB_OUTPUT"
       - name: Output environment variables
         run: echo "Sourced variables from the ${{ vars.CLOUD_ENVIRONMENT }} environment."
 
