@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       name:
-        description: "Open Tofuc CI/CD Infrastructure Workflow"
+        description: "OpenTofu CI/CD Infrastructure Workflow"
 
 # Configure OIDC permissions
 permissions:
@@ -38,15 +38,15 @@ jobs:
     steps:
       - id: vars
         run: |
-          echo "TF_STATE_KEY=plex-prod.terraform.tfstate" >> "$GITHUB_OUTPUT"
-          echo "WORKING_DIR=./infrastructure/azure" >> "$GITHUB_OUTPUT"
+          echo "TF_STATE_KEY=${{ vars.TF_STATE_KEY || 'plex-prod.terraform.tfstate' }}" >> "$GITHUB_OUTPUT"
+          echo "WORKING_DIR=${{ vars.WORKING_DIR || './infrastructure/azure' }}" >> "$GITHUB_OUTPUT"
       - name: Output environment variables
         run: echo "Sourced variables from the ${{ vars.CLOUD_ENVIRONMENT }} environment."
 
   verify_backend:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: setup
-    uses: fbesti/ot-azure/.github/workflows/reusable-verify-backend.yaml@main
+    uses: ./.github/workflows/reusable-verify-backend.yaml
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -66,7 +66,7 @@ jobs:
   opentofu_plan:
     if: github.event_name == 'pull_request'
     needs: [setup, verify_backend]
-    uses: fbesti/ot-azure/.github/workflows/reusable-opentofu-plan.yaml@main
+    uses: ./.github/workflows/reusable-opentofu-plan.yaml
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -82,8 +82,8 @@ jobs:
 
   opentofu_apply:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: setup
-    uses: fbesti/ot-azure/.github/workflows/reusable-opentofu-apply.yaml@main
+    needs: [setup, verify_backend]
+    uses: ./.github/workflows/reusable-opentofu-apply.yaml
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}

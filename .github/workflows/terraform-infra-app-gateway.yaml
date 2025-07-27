@@ -38,8 +38,8 @@ jobs:
     steps:
       - id: vars
         run: |
-          echo "TF_STATE_KEY=routing.terraform.tfstate" >> "$GITHUB_OUTPUT"
-          echo "WORKING_DIR=./infrastructure/azure/app_gateway" >> "$GITHUB_OUTPUT"
+          echo "TF_STATE_KEY=${{ vars.TF_STATE_KEY || 'routing.terraform.tfstate' }}" >> "$GITHUB_OUTPUT"
+          echo "WORKING_DIR=${{ vars.WORKING_DIR || './infrastructure/azure/app_gateway' }}" >> "$GITHUB_OUTPUT"
       - name: Output environment variables
         run: echo "Sourced variables from the ${{ vars.CLOUD_ENVIRONMENT }} environment."
 
@@ -82,7 +82,7 @@ jobs:
 
   terraform_apply:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: setup
+    needs: [setup, verify_backend]
     uses: ./.github/workflows/reusable-terraform-apply.yaml
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}

@@ -48,19 +48,20 @@ jobs:
   opentofu_apply:
     name: OpenTofu Apply
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     environment: ${{ inputs.CLOUD_ENVIRONMENT }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@v1
+        uses: opentofu/setup-opentofu@ae80fd3a1614ea7991c4b8cc6e29de229f0c4cf6 # v1.0.4
         with:
-          tofu_version: latest
+          tofu_version: 1.8.4
           tofu_wrapper: false
 
       - name: Azure Login using OIDC
-        uses: azure/login@v2
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -99,7 +100,7 @@ jobs:
       - name: Download Plan Artifact
         id: download_artifact
         if: steps.find_pr.outputs.found_pr == 'true'
-        uses: dawidd6/action-download-artifact@v3
+        uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 # v3.1.4
         with:
           name: opentofu-plan-${{ steps.find_pr.outputs.pr_number }}
           path: ${{ inputs.WORKING_DIR }}
@@ -131,11 +132,13 @@ jobs:
             --resource-group ${{ inputs.TF_STATE_RG }} \
             --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
             --output none
+          # Wait for firewall rule to propagate
           sleep 30
 
       - name: OpenTofu Initialize
         if: steps.check_plan.outputs.plan_exists == 'true'
         working-directory: ${{ inputs.WORKING_DIR }}
+        timeout-minutes: 10
         run: |
           tofu init \
             -backend-config="resource_group_name=${{ inputs.TF_STATE_RG }}" \
@@ -146,10 +149,11 @@ jobs:
       - name: OpenTofu Apply
         if: steps.check_plan.outputs.plan_exists == 'true'
         working-directory: ${{ inputs.WORKING_DIR }}
+        timeout-minutes: 30
         run: tofu apply -auto-approve tfplan
 
       - name: Remove Firewall Rule from Storage Account
-        if: always() && steps.check_plan.outputs.plan_exists == 'true'
+        if: always() && steps.check_plan.outputs.plan_exists == 'true' && steps.get_ip.outputs.runner_ip != ''
         run: |
           az storage account network-rule remove \
             --account-name ${{ inputs.TF_STATE_SA }} \

@@ -48,19 +48,20 @@ jobs:
   terraform_apply:
     name: Terraform Apply
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     environment: ${{ inputs.CLOUD_ENVIRONMENT }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v2.0.3
         with:
-          terraform_version: latest
+          terraform_version: 1.9.8
           terraform_wrapper: false
 
       - name: Azure Login using OIDC
-        uses: azure/login@v2
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -99,7 +100,7 @@ jobs:
       - name: Download Plan Artifact
         id: download_artifact
         if: steps.find_pr.outputs.found_pr == 'true'
-        uses: dawidd6/action-download-artifact@v3
+        uses: dawidd6/action-download-artifact@bf251b5aa9c2f7eeb574a96ee720e24f801b7c11 # v3.1.4
         with:
           name: terraform-plan-${{ steps.find_pr.outputs.pr_number }}
           path: ${{ inputs.WORKING_DIR }}
@@ -131,11 +132,13 @@ jobs:
             --resource-group ${{ inputs.TF_STATE_RG }} \
             --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
             --output none
+          # Wait for firewall rule to propagate
           sleep 30
 
       - name: Terraform Initialize
         if: steps.check_plan.outputs.plan_exists == 'true'
         working-directory: ${{ inputs.WORKING_DIR }}
+        timeout-minutes: 10
         run: |
           terraform init \
             -backend-config="resource_group_name=${{ inputs.TF_STATE_RG }}" \
@@ -146,10 +149,11 @@ jobs:
       - name: Terraform Apply
         if: steps.check_plan.outputs.plan_exists == 'true'
         working-directory: ${{ inputs.WORKING_DIR }}
+        timeout-minutes: 30
         run: terraform apply -auto-approve tfplan
 
       - name: Remove Firewall Rule from Storage Account
-        if: always() && steps.check_plan.outputs.plan_exists == 'true'
+        if: always() && steps.check_plan.outputs.plan_exists == 'true' && steps.get_ip.outputs.runner_ip != ''
         run: |
           az storage account network-rule remove \
             --account-name ${{ inputs.TF_STATE_SA }} \

@@ -51,21 +51,22 @@ permissions:
 jobs:
   opentofu_plan:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: ${{ inputs.CLOUD_ENVIRONMENT }}
     outputs:
       plan_changes: ${{ steps.plan.outputs.plan_changes }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@v1
+        uses: opentofu/setup-opentofu@ae80fd3a1614ea7991c4b8cc6e29de229f0c4cf6 # v1.0.4
         with:
-          tofu_version: latest
+          tofu_version: 1.8.4
           tofu_wrapper: false
 
       - name: Azure Login using OIDC
-        uses: azure/login@v2
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -82,6 +83,7 @@ jobs:
 
       - name: OpenTofu Format Check
         working-directory: ${{ inputs.WORKING_DIR }}
+        timeout-minutes: 5
         run: |
           echo "Running opentofu format check on ${{ inputs.WORKING_DIR }}"
           tofu fmt -check
@@ -89,6 +91,7 @@ jobs:
 
       - name: OpenTofu Initialize
         working-directory: ${{ inputs.WORKING_DIR }}
+        timeout-minutes: 10
         run: |
           tofu init \
             -backend-config="resource_group_name=${{ inputs.TF_STATE_RG }}" \
@@ -98,11 +101,13 @@ jobs:
 
       - name: OpenTofu Validate
         working-directory: ${{ inputs.WORKING_DIR }}
+        timeout-minutes: 5
         run: tofu validate
 
       - name: OpenTofu Plan
         id: plan
         working-directory: ${{ inputs.WORKING_DIR }}
+        timeout-minutes: 15
         run: |
           echo "Running tofu plan on ${{ inputs.WORKING_DIR }}"
           tofu plan -out=tfplan -detailed-exitcode || exit_code=$?
@@ -131,7 +136,7 @@ jobs:
 
       - name: Upload Plan Artifact
         if: env.PLAN_CHANGES == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: opentofu-plan-${{ inputs.PULL_REQUEST_NUMBER }}
           path: ${{ inputs.WORKING_DIR }}/tfplan
