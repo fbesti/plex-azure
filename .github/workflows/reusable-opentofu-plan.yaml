@@ -89,6 +89,20 @@ jobs:
           tofu fmt -check
           echo "All files are properly formatted." 
 
+      - name: Get Runner IP Address
+        id: get_ip
+        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Add Firewall Rule to Storage Account
+        run: |
+          az storage account network-rule add \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
+          # Wait for firewall rule to propagate
+          sleep 30
+
       - name: OpenTofu Initialize
         working-directory: ${{ inputs.WORKING_DIR }}
         timeout-minutes: 10
@@ -141,3 +155,12 @@ jobs:
           name: opentofu-plan-${{ inputs.PULL_REQUEST_NUMBER }}
           path: ${{ inputs.WORKING_DIR }}/tfplan
           retention-days: 7
+
+      - name: Remove Firewall Rule from Storage Account
+        if: always() && steps.check_plan.outputs.plan_exists == 'true' && steps.get_ip.outputs.runner_ip != ''
+        run: |
+          az storage account network-rule remove \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
+            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
+            --output none
