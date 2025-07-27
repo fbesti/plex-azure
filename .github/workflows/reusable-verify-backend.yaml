@@ -132,13 +132,6 @@ jobs:
             --min-tls-version TLS1_2 \
             --output none
 
-      - name: Enable versioning on Storage Account
-        run: |
-          az storage account blob-service-properties update \
-            --account-name ${{ inputs.TF_STATE_SA }} \
-            --resource-group ${{ inputs.TF_STATE_RG }} \
-            --enable-versioning true
-
       - name: Get Runner IP Address
         id: get_ip
         run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
@@ -152,6 +145,13 @@ jobs:
             --output none
           # Wait for firewall rule to propagate
           sleep 30
+
+      - name: Enable versioning on Storage Account
+        run: |
+          az storage account blob-service-properties update \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
+            --enable-versioning true
 
       - name: Check if Container exists
         id: check_container
