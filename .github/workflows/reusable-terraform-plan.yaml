@@ -98,11 +98,6 @@ jobs:
         run: |
           echo "Running terraform format check..."
           terraform fmt -check -diff
-          if [ $? -ne 0 ]; then
-            echo "Format check failed. Files need formatting:"
-            terraform fmt -check -recursive -diff
-            exit 1
-          fi
           echo "All files are properly formatted."
 
       - name: Terraform Initialize

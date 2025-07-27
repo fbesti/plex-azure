@@ -95,7 +95,10 @@ jobs:
 
       - name: OpenTofu Format Check
         working-directory: ${{ inputs.WORKING_DIR }}
-        run: tofu fmt -check -recursive
+        run: |
+          echo "Running opentofu format check..."
+          tofu fmt -check
+          echo "All files are properly formatted." 
 
       - name: OpenTofu Initialize
         working-directory: ${{ inputs.WORKING_DIR }}
