@@ -1,5 +1,5 @@
 module "virtual_machine_packet_capture" {
-  source = "../../../.modules/virtual_machine_packet_capture"
+  source = "../../../modules/virtual_machine_packet_capture"
 
   name                         = "example-vm-capture"
   network_watcher_id           = "example-watcher-id"

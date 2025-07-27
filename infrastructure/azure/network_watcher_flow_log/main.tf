@@ -1,5 +1,5 @@
 module "network_watcher_flow_log" {
-  source = "../../../.modules/network_watcher_flow_log"
+  source = "../../../modules/network_watcher_flow_log"
 
   name                 = "example-flow-log"
   network_watcher_name = "example-watcher"

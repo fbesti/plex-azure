@@ -4,7 +4,7 @@ resource "azurerm_resource_group" "network" {
 }
 
 module "vnet" {
-  source = "../../../.modules/vnet"
+  source = "../../../modules/vnet"
 
   vnet_name           = "vnet-production"
   address_space       = ["10.0.0.0/16"]
@@ -16,7 +16,7 @@ module "vnet" {
 }
 
 module "network_watcher" {
-  source = "../../../.modules/network_watcher"
+  source = "../../../modules/network_watcher"
 
   name                = "network-watcher"
   location            = var.location
