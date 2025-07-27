@@ -80,19 +80,6 @@ jobs:
           echo "TF_VAR_remote_state_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_remote_state_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
 
-      - name: Get Runner IP Address
-        id: get_ip
-        run: echo "runner_ip=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
-
-      - name: Add Firewall Rule to Storage Account
-        run: |
-          az storage account network-rule add \
-            --account-name ${{ inputs.TF_STATE_SA }} \
-            --resource-group ${{ inputs.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
-            --output none
-          sleep 30
-
       - name: Terraform Format Check
         working-directory: ${{ inputs.WORKING_DIR }}
         run: |
@@ -117,6 +104,7 @@ jobs:
         id: plan
         working-directory: ${{ inputs.WORKING_DIR }}
         run: |
+          echo "Running terraform plan on ${{ inputs.WORKING_DIR }}"
           terraform plan -out=tfplan -detailed-exitcode || exit_code=$?
           if [ $exit_code -eq 1 ]; then
             echo "Terraform plan failed"
@@ -148,12 +136,3 @@ jobs:
           name: terraform-plan-${{ inputs.PULL_REQUEST_NUMBER }}
           path: ${{ inputs.WORKING_DIR }}/tfplan
           retention-days: 7
-
-      - name: Remove Firewall Rule from Storage Account
-        if: always()
-        run: |
-          az storage account network-rule remove \
-            --account-name ${{ inputs.TF_STATE_SA }} \
-            --resource-group ${{ inputs.TF_STATE_RG }} \
-            --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
-            --output none
