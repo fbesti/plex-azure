@@ -30,12 +30,13 @@ jobs:
       TF_STATE_RG: ${{ vars.TF_STATE_RG }}
       TF_STATE_SA: ${{ vars.TF_STATE_SA }}
       TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
-      TF_STATE_KEY: ${{ vars.TF_STATE_KEY_NETWORK_WATCHER }}
       AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
       AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
       AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
       AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
       CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      TF_STATE_KEY: network.terraform.tfstate
+      ORKING_DIR: ./infrastructure/azure/network_watcher
     steps:
       - name: Output environment variables
         run: echo "Sourced variables from the ${{ vars.CLOUD_ENVIRONMENT }} environment."
@@ -75,7 +76,7 @@ jobs:
       TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
       TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
       PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-      WORKING_DIR: ./infrastructure/azure/network_watcher
+      WORKING_DIR: ${{ needs.setup.outputs.WORKING_DIR }}
 
   terraform_apply:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -92,4 +93,4 @@ jobs:
       TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
       TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
       HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-      WORKING_DIR: ./infrastructure/azure/network_watcher
+      WORKING_DIR: ${{ needs.setup.outputs.WORKING_DIR }}

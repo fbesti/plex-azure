@@ -97,7 +97,7 @@ jobs:
         working-directory: ${{ inputs.WORKING_DIR }}
         run: |
           echo "Running terraform format check..."
-          terraform fmt -check -recursive -diff
+          terraform fmt -check -diff
           if [ $? -ne 0 ]; then
             echo "Format check failed. Files need formatting:"
             terraform fmt -check -recursive -diff
