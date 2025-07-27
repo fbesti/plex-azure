@@ -40,8 +40,7 @@ jobs:
         run: |
           echo "TF_STATE_KEY=${{ vars.TF_STATE_KEY || 'network.terraform.tfstate' }}" >> "$GITHUB_OUTPUT"
           echo "WORKING_DIR=${{ vars.WORKING_DIR || './infrastructure/azure/network_watcher' }}" >> "$GITHUB_OUTPUT"
-      - name: Output environment variables
-        run: echo "Sourced variables from the ${{ vars.CLOUD_ENVIRONMENT }} environment."
+          echo "Sourced variables from the ${{ vars.CLOUD_ENVIRONMENT }} environment."
 
   verify_backend:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
