@@ -93,4 +93,4 @@ jobs:
       TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
       TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
       HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-      WWORKING_DIR: ${{ needs.setup.outputs.WORKING_DIR }}
+      WORKING_DIR: ${{ needs.setup.outputs.WORKING_DIR }}
