@@ -96,7 +96,7 @@ jobs:
       - name: OpenTofu Format Check
         working-directory: ${{ inputs.WORKING_DIR }}
         run: |
-          echo "Running opentofu format check..."
+          echo "Running opentofu format check on ${{ inputs.WORKING_DIR }}"
           tofu fmt -check
           echo "All files are properly formatted." 
 

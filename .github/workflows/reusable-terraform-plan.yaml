@@ -96,7 +96,7 @@ jobs:
       - name: Terraform Format Check
         working-directory: ${{ inputs.WORKING_DIR }}
         run: |
-          echo "Running terraform format check..."
+          echo "Running terraform format check on ${{ inputs.WORKING_DIR }}"
           terraform fmt -check -diff
           echo "All files are properly formatted."
 
