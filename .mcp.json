@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "opentofuregistry": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://gitmcp.io/opentofu/registry"
+      ]
+    },
+    "opentofu": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://gitmcp.io/opentofu/opentofu"
+      ]
+    },
+    "terraform": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "hashicorp/terraform-mcp-server"
+      ]
+    }
+  }
+}
