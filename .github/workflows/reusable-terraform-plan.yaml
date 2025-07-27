@@ -150,14 +150,14 @@ jobs:
 
       - name: Upload Plan Artifact
         if: env.PLAN_CHANGES == 'true'
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@v4.4.3
         with:
           name: terraform-plan-${{ inputs.PULL_REQUEST_NUMBER }}
           path: ${{ inputs.WORKING_DIR }}/tfplan
           retention-days: 7
 
       - name: Remove Firewall Rule from Storage Account
-        if: always() && steps.check_plan.outputs.plan_exists == 'true' && steps.get_ip.outputs.runner_ip != ''
+        if: always()
         run: |
           az storage account network-rule remove \
             --account-name ${{ inputs.TF_STATE_SA }} \
