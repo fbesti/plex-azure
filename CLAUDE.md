@@ -101,7 +101,7 @@ The repository provides three main reusable workflow types:
 
 #### Making Changes to Core Workflows
 
-When modifying reusable workflows:
+When modifying workflows:
 1. **Analyze Dependencies** - Understand impact on other workflows
 2. **Plan Holistically** - Consider all workflow interdependencies
 3. **Update Documentation** - Maintain accurate README.md
