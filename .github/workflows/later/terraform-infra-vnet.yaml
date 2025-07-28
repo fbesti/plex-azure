@@ -1,0 +1,95 @@
+name: Azure Terraform Resources CI/CD Workflow
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/terraform-infra-vnet.yaml
+      - infrastructure/azure/vnet/**
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/terraform-infra-vnet.yaml
+      - infrastructure/azure/vnet/**
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "Terraform CI/CD Infrastructure Workflow"
+
+# Configure OIDC permissions
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    environment: ${{ vars.CLOUD_ENVIRONMENT }}
+    outputs:
+      TF_STATE_RG: ${{ vars.TF_STATE_RG }}
+      TF_STATE_SA: ${{ vars.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ vars.TF_STATE_KEY_VNET }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      AZURE_SA_SKU: ${{ vars.AZURE_SA_SKU }}
+      AZURE_SA_KIND: ${{ vars.AZURE_SA_KIND }}
+      AZURE_SA_TIER: ${{ vars.AZURE_SA_TIER }}
+      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+    steps:
+      - name: Output environment variables
+        run: echo "Sourced variables from the ${{ vars.CLOUD_ENVIRONMENT }} environment."
+
+  verify_backend:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: setup
+    uses: ./.github/workflows/reusable-verify-backend.yaml
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    with:
+      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
+      AZURE_LOCATION: ${{ needs.setup.outputs.AZURE_LOCATION }}
+      AZURE_SA_SKU: ${{ needs.setup.outputs.AZURE_SA_SKU }}
+      AZURE_SA_KIND: ${{ needs.setup.outputs.AZURE_SA_KIND }}
+      AZURE_SA_TIER: ${{ needs.setup.outputs.AZURE_SA_TIER }}
+
+
+  terraform_plan:
+    if: github.event_name == 'pull_request'
+    needs: [setup, verify_backend]
+    uses: ./.github/workflows/reusable-terraform-plan.yaml
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    with:
+      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
+      PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+      WORKING_DIR: ./infrastructure/azure/vnet
+
+  terraform_apply:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: setup
+    uses: ./.github/workflows/reusable-terraform-apply.yaml
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    with:
+      CLOUD_ENVIRONMENT: ${{ vars.CLOUD_ENVIRONMENT }}
+      TF_STATE_RG: ${{ needs.setup.outputs.TF_STATE_RG }}
+      TF_STATE_SA: ${{ needs.setup.outputs.TF_STATE_SA }}
+      TF_STATE_CONTAINER: ${{ needs.setup.outputs.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ needs.setup.outputs.TF_STATE_KEY }}
+      HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+      WORKING_DIR: ./infrastructure/azure/vnet

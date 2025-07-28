@@ -67,6 +67,7 @@ permissions:
 jobs:
   verify_backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: ${{ inputs.CLOUD_ENVIRONMENT }}
     outputs:
       tf_state_rg: ${{ inputs.TF_STATE_RG }}
@@ -75,16 +76,16 @@ jobs:
       tf_state_key: ${{ inputs.TF_STATE_KEY }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Azure Login using OIDC
-        uses: azure/login@v2
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Set Azure Environment Variables for OpenTofu
+      - name: Set Azure Environment Variables
         run: |
           echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
           echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
@@ -128,15 +129,8 @@ jobs:
             --kind ${{ inputs.AZURE_SA_KIND }} \
             --access-tier ${{ inputs.AZURE_SA_TIER }} \
             --allow-blob-public-access false \
-            --min-tls-version TLS1_2
+            --min-tls-version TLS1_2 \
             --output none
-
-      - name: Enable versioning on Storage Account
-        run: |
-          az storage account blob-service-properties update \
-            --account-name ${{ inputs.TF_STATE_SA }} \
-            --resource-group ${{ inputs.TF_STATE_RG }} \
-            --enable-versioning true
 
       - name: Get Runner IP Address
         id: get_ip
@@ -149,7 +143,15 @@ jobs:
             --resource-group ${{ inputs.TF_STATE_RG }} \
             --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
             --output none
+          # Wait for firewall rule to propagate
           sleep 30
+
+      - name: Enable versioning on Storage Account
+        run: |
+          az storage account blob-service-properties update \
+            --account-name ${{ inputs.TF_STATE_SA }} \
+            --resource-group ${{ inputs.TF_STATE_RG }} \
+            --enable-versioning true
 
       - name: Check if Container exists
         id: check_container
@@ -166,14 +168,22 @@ jobs:
           az storage container create \
             --name ${{ inputs.TF_STATE_CONTAINER }} \
             --account-name ${{ inputs.TF_STATE_SA }} \
-            --auth-mode login
+            --auth-mode login \
             --output none
 
       - name: Remove Firewall Rule from Storage Account
-        if: always()
+        if: always() && steps.get_ip.outputs.runner_ip != ''
         run: |
           az storage account network-rule remove \
             --account-name ${{ inputs.TF_STATE_SA }} \
             --resource-group ${{ inputs.TF_STATE_RG }} \
             --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
             --output none
+
+      - name: Set outputs
+        id: set_outputs
+        run: |
+          echo "tf_state_rg=${{ inputs.TF_STATE_RG }}" >> $GITHUB_OUTPUT
+          echo "tf_state_sa=${{ inputs.TF_STATE_SA }}" >> $GITHUB_OUTPUT
+          echo "tf_state_container=${{ inputs.TF_STATE_CONTAINER }}" >> $GITHUB_OUTPUT
+          echo "tf_state_key=${{ inputs.TF_STATE_KEY }}" >> $GITHUB_OUTPUT

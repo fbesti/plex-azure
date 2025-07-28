@@ -1,4 +1,4 @@
-name: Reusable - OpenTofu Plan
+name: Reusable - Terraform Plan
 
 on: 
   workflow_call:
@@ -28,7 +28,7 @@ on:
         required: true
         type: string
       WORKING_DIR:
-        description: 'The working directory for OpenTofu'
+        description: 'The working directory for Terraform'
         required: true
         type: string
     secrets:
@@ -40,8 +40,8 @@ on:
         required: true
     outputs:
       plan_changes:
-        description: "Indicates if the OpenTofu plan has changes"
-        value: ${{ jobs.opentofu_plan.outputs.plan_changes }}
+        description: "Indicates if the Terraform plan has changes"
+        value: ${{ jobs.terraform_plan.outputs.plan_changes }}
 
 permissions:
   id-token: write
@@ -49,7 +49,7 @@ permissions:
   actions: read
 
 jobs:
-  opentofu_plan:
+  terraform_plan:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: ${{ inputs.CLOUD_ENVIRONMENT }}
@@ -59,11 +59,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4.1.7
 
-      - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@v1.0.4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2.0.3
         with:
-          tofu_version: 1.8.4
-          tofu_wrapper: false
+          terraform_version: 1.9.8
+          terraform_wrapper: false
 
       - name: Azure Login using OIDC
         uses: azure/login@v2.2.0
@@ -72,7 +72,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Set Azure Environment Variables for OpenTofu
+      - name: Set Azure Environment Variables for Terraform
         run: |
           echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
           echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
@@ -81,13 +81,13 @@ jobs:
           echo "TF_VAR_remote_state_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_remote_state_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
 
-      - name: OpenTofu Format Check
+      - name: Terraform Format Check
         working-directory: ${{ inputs.WORKING_DIR }}
         timeout-minutes: 5
         run: |
-          echo "Running opentofu format check on ${{ inputs.WORKING_DIR }}"
-          tofu fmt -check
-          echo "All files are properly formatted." 
+          echo "Running terraform format check on ${{ inputs.WORKING_DIR }}"
+          terraform fmt -check -diff
+          echo "All files are properly formatted."
 
       - name: Get Runner IP Address
         id: get_ip
@@ -103,37 +103,37 @@ jobs:
           # Wait for firewall rule to propagate
           sleep 30
 
-      - name: OpenTofu Initialize
+      - name: Terraform Initialize
         working-directory: ${{ inputs.WORKING_DIR }}
         timeout-minutes: 10
         run: |
-          tofu init \
+          terraform init \
             -backend-config="resource_group_name=${{ inputs.TF_STATE_RG }}" \
             -backend-config="storage_account_name=${{ inputs.TF_STATE_SA }}" \
             -backend-config="container_name=${{ inputs.TF_STATE_CONTAINER }}" \
             -backend-config="key=${{ inputs.TF_STATE_KEY }}"
 
-      - name: OpenTofu Validate
+      - name: Terraform Validate
         working-directory: ${{ inputs.WORKING_DIR }}
         timeout-minutes: 5
-        run: tofu validate
+        run: terraform validate
 
-      - name: OpenTofu Plan
+      - name: Terraform Plan
         id: plan
         working-directory: ${{ inputs.WORKING_DIR }}
         timeout-minutes: 15
         run: |
-          echo "Running tofu plan on ${{ inputs.WORKING_DIR }}"
-          tofu plan -out=tfplan -detailed-exitcode || exit_code=$?
+          echo "Running terraform plan on ${{ inputs.WORKING_DIR }}"
+          terraform plan -out=tfplan -detailed-exitcode || exit_code=$?
           if [ $exit_code -eq 1 ]; then
-            echo "OpenTofu plan failed"
+            echo "Terraform plan failed"
             exit 1
           elif [ $exit_code -eq 2 ]; then
-            echo "OpenTofu plan succeeded with changes"
+            echo "Terraform plan succeeded with changes"
             echo "PLAN_CHANGES=true" >> $GITHUB_ENV
             echo "plan_changes=true" >> $GITHUB_OUTPUT
           else
-            echo "OpenTofu plan succeeded with no changes"
+            echo "Terraform plan succeeded with no changes"
             echo "PLAN_CHANGES=false" >> $GITHUB_ENV
             echo "plan_changes=false" >> $GITHUB_OUTPUT
           fi
@@ -142,17 +142,17 @@ jobs:
         if: env.PLAN_CHANGES == 'true'
         working-directory: ${{ inputs.WORKING_DIR }}
         run: |
-          tofu show -no-color tfplan > plan_output.txt
-          echo "## OpenTofu Plan Output" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          terraform show -no-color tfplan > plan_output.txt
+          echo "## Terraform Plan Output" >> $GITHUB_STEP_SUMMARY
+          echo "```" >> $GITHUB_STEP_SUMMARY
           cat plan_output.txt >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "```" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Plan Artifact
         if: env.PLAN_CHANGES == 'true'
         uses: actions/upload-artifact@v4.4.3
         with:
-          name: opentofu-plan-${{ inputs.PULL_REQUEST_NUMBER }}
+          name: terraform-plan-${{ inputs.PULL_REQUEST_NUMBER }}
           path: ${{ inputs.WORKING_DIR }}/tfplan
           retention-days: 7
 
@@ -164,3 +164,4 @@ jobs:
             --resource-group ${{ inputs.TF_STATE_RG }} \
             --ip-address ${{ steps.get_ip.outputs.runner_ip }} \
             --output none
+
