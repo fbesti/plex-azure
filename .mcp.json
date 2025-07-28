@@ -14,6 +14,13 @@
         "https://gitmcp.io/opentofu/opentofu"
       ]
     },
+    "opentofu-azure-provider": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://gitmcp.io/opentofu/terraform-provider-azurerm"
+      ]
+    },
     "terraform": {
       "command": "docker",
       "args": [
